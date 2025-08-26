@@ -1,0 +1,35 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.3'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'org.modelseeed'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("com.google.guava:guava:33.4.6-jre")
+    implementation("org.neo4j:neo4j:5.26.5")
+    implementation("org.springframework.boot:spring-boot-starter-web:3.5.3")
+    implementation("org.mongodb:mongodb-driver-sync:5.5.1")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
+    implementation("com.rabbitmq:amqp-client:5.25.0")
+    //implementation("org.springframework.boot:spring-boot-starter-data-mongodb:3.5.3")
+    //implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
+}
+
+configurations.all {
+    exclude group: 'org.slf4j', module: 'slf4j-nop'
+    exclude group: 'org.slf4j', module: 'slf4j-simple'
+    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    exclude group: 'org.neo4j', module: 'neo4j-slf4j-provider'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
