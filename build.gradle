@@ -21,6 +21,9 @@ dependencies {
     implementation("com.rabbitmq:amqp-client:5.25.0")
     //implementation("org.springframework.boot:spring-boot-starter-data-mongodb:3.5.3")
     //implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
+    testImplementation("org.springframework.boot:spring-boot-starter-test") {
+        exclude group: "org.junit.vintage", module: "junit-vintage-engine" // keep JUnit4 out
+    }
 }
 
 configurations.all {
