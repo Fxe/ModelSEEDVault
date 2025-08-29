@@ -6,7 +6,7 @@ import org.springframework.context.annotation.ComponentScan;
 
 //@SpringBootApplication(exclude = {MongoAutoConfiguration.class})
 @SpringBootApplication
-@ComponentScan("org.modelseeed")
+@ComponentScan("org.modelseeed.vault")
 public class Vault {
   public static void main(String[] args) {
     SpringApplication.run(Vault.class, args);

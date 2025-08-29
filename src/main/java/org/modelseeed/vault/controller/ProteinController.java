@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.modelseeed.vault.core.Protein;
 import org.modelseeed.vault.service.ProteinService;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/protein")
+@CrossOrigin
 public class ProteinController {
   
   private ProteinService proteinService;

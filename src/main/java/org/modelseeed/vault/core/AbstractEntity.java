@@ -7,10 +7,10 @@ import java.util.Set;
 
 public abstract class AbstractEntity {
   
-  private String entry;
-  private String type;
-  private Set<String> labels;
-  private Map<String, Object> properties;
+  protected String entry;
+  protected String type;
+  protected Set<String> labels;
+  protected Map<String, Object> properties;
   
   public AbstractEntity(String key, String type) {
     if (key == null) {
@@ -55,5 +55,9 @@ public abstract class AbstractEntity {
       throw new IllegalArgumentException("key is reserved - not allowed property");
     }
     this.properties.put(property, value);
+  }
+  
+  public Map<String, Object> getProperties() {
+    return new HashMap<>(this.properties);
   }
 }

@@ -4,7 +4,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.modelseeed.vault.core.Neo4jNodeEntity;
+import org.modelseeed.vault.dto.DataTablesResponse;
+import org.modelseeed.vault.dto.NodePageRequest;
 import org.modelseeed.vault.service.GraphService;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/graph")
+@CrossOrigin
 public class GraphController {
 
     private GraphService graphService;
@@ -23,12 +27,12 @@ public class GraphController {
         this.graphService = graphService;
     }
     
-    @PostMapping("/node/register")
+    @PostMapping("/node/constraint")
     public void registerNode(String type) {
       this.graphService.registerNode(type);
     }
     
-    @GetMapping("/node/register")
+    @GetMapping("/node/constraint")
     public Object getAllConstraints() {
       return this.graphService.listConstraints();
     }
@@ -40,7 +44,25 @@ public class GraphController {
       return this.graphService.addNode(type, id, properties);
     }
     
-
+    @GetMapping("/node/page")
+    public DataTablesResponse<Neo4jNodeEntity> pageNodes(
+            @RequestParam(defaultValue = "1") int draw,
+            @RequestParam(defaultValue = "0") int start,
+            @RequestParam(defaultValue = "10") int length,
+            @RequestParam(value = "search[value]", required = false) String searchValue,
+            @RequestParam(value = "order[0][column]", required = false) String sortColumnIndex,
+            @RequestParam(value = "order[0][dir]", defaultValue = "asc") String sortDirection,
+            @RequestParam(value = "columns[0][data]", defaultValue = "key") String sortColumn,
+            @RequestParam(required = false) String nodeType) {
+        
+        NodePageRequest request = new NodePageRequest(draw, start, length);
+        request.setSearchValue(searchValue);
+        request.setSortColumn(sortColumn);
+        request.setSortDirection(sortDirection);
+        request.setNodeType(nodeType);
+        
+        return this.graphService.pageNodes(request);
+    }
 
     @PostMapping("/edge")
     public String addEdge(@RequestParam Map<String, Object> data) {
