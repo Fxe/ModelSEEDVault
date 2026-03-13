@@ -2,18 +2,17 @@ package org.modelseeed.vault.repository;
 
 import org.springframework.stereotype.Repository;
 import org.modelseeed.vault.core.FunctionalAnnotation;
+import org.modelseeed.vault.core.Neo4jNodeEntity;
 import org.modelseeed.vault.core.Protein;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 
 @Repository
-public class ProteinRepositoryNeo4j {
-  
-  private final GraphDatabaseService db;
+public class ProteinRepositoryNeo4j extends GraphRepository{
   
   public ProteinRepositoryNeo4j(GraphDatabaseService db) {
-    this.db = db;
+    super(db);
   }
   
   public long countProteins() {
@@ -52,32 +51,36 @@ public class ProteinRepositoryNeo4j {
     return null;
   }
   
+  /**
   public Protein getProteinBySha256(String sha256) {
     try (Transaction tx = db.beginTx()) {
       Node node = tx.findNode(Protein.LABEL, "sha256", sha256);
       if (node != null) {
-        Protein protein = new Protein("XXX");
+        Protein protein = Protein.buildFromNodeAndSequence(node, sha256);
         return protein;
       }
       tx.commit();
     }
     return null;
   }
+  **/
   
-  public Protein getProteinBySequence(String sequence) {
-    return null;
+  public Protein getProtein(Protein protein) {
+    Neo4jNodeEntity node = this.getNode(protein.getHash());
+    Protein res = new Protein(protein.getSequence(), (String) node.getProperties().get("key"));
+    return res;
   }
   
-  public boolean createProteinIfNotExists(String sequence) {
-    Protein protein = new Protein(sequence);
+  public boolean createProteinIfNotExists(Protein protein) {
     try (Transaction tx = db.beginTx()) {
         boolean exists = tx.findNodes(Protein.LABEL)
                            .stream()
-                           .anyMatch(node -> protein.getHash().equals(node.getProperty("sha256", null)));
+                           .anyMatch(node -> protein.getHash().equals(node.getProperty("key", null)));
 
         if (!exists) {
             var node = tx.createNode(Protein.LABEL);
-            node.setProperty("sha256", protein.getHash());
+            node.setProperty("key", protein.getHash());
+            node.setProperty("type", "Protein");
         }
         tx.commit();
         return exists;

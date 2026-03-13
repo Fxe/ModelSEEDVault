@@ -1,4 +1,4 @@
-package org.modelseeed.vault.repository;
+package org.modelseeed.vault.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,7 +9,7 @@ import com.mongodb.client.MongoDatabase;
 @Configuration
 public class MongoConfig {
   
-  private static final String MONGO_URI = "mongodb://192.168.1.19:27017";
+  private static final String MONGO_URI = "mongodb://192.168.1.18:27017";
   private static final String DB_SEQUENCE = "vault_sequence";
   
   @Bean

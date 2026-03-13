@@ -1,4 +1,4 @@
-package org.modelseeed.vault.repository;
+package org.modelseeed.vault.config;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,7 +20,8 @@ import org.springframework.context.annotation.Configuration;
 public class Neo4jConfig {
   
   private final String DEFAULT_DATABASE_NAME = "neo4j";
-  static Path DEFAULT_DATABASE_PATH = Paths.get("graphdb");
+  //public static Path DEFAULT_DATABASE_PATH = Paths.get("graphdb");
+  public static Path DEFAULT_DATABASE_PATH = Paths.get("M:/vault/graphdb");
   
   private DatabaseManagementService dbms;
   

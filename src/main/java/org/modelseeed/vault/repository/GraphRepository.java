@@ -2,16 +2,19 @@ package org.modelseeed.vault.repository;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import org.modelseeed.vault.core.Neo4jNodeEntity;
+import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 import org.springframework.stereotype.Repository;
@@ -19,7 +22,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class GraphRepository {
   
-  private final GraphDatabaseService db;
+  protected final GraphDatabaseService db;
   
   public GraphRepository(GraphDatabaseService db) {
     this.db = db;
@@ -32,9 +35,23 @@ public class GraphRepository {
     }
   }
   
+  public List<Neo4jNodeEntity> listNodeByLabel(Label label, int limit) {
+    List<Neo4jNodeEntity> res = new ArrayList<>();
+    try (Transaction tx = db.beginTx()) {
+      Iterator<Node> it = tx.findNodes(label);
+      while (it.hasNext() && res.size() < limit) {
+        res.add(new Neo4jNodeEntity(it.next()));
+      }
+    }
+    return res;
+  }
+  
   public Neo4jNodeEntity getNode(String entry, String label) {
     try (Transaction tx = db.beginTx()) {
       Node node = tx.findNode(Label.label(label), "key", entry);
+      if (node == null) {
+        return null;
+      }
       return new Neo4jNodeEntity(node);
     }
   }
@@ -47,6 +64,20 @@ public class GraphRepository {
         return this.getNode(e.getEntry(), e.getType());
       }
     }
+  }
+  
+  public Map<String, Map<String, Object>> getNodeRelationships(Neo4jNodeEntity node, Direction direction, Integer limit) {
+    Map<String, Map<String, Object>> res = new HashMap<>();
+    for (Relationship r: node.getNode().getRelationships(direction)) {
+      Map<String, Object> props = Map.copyOf(r.getAllProperties());
+      props.put("relationship_type", r.getType().toString());
+      res.put(r.getElementId(), props);
+      if (limit != null && res.size() >= limit) {
+        break;
+      }
+    }
+    
+    return res;
   }
   
   public Neo4jNodeEntity addNode(Neo4jNodeEntity node) {
@@ -106,6 +137,69 @@ public class GraphRepository {
       }
       return res;
     }
+  }
+  
+  public String addEdge(String srcElementId, String dstElementId, String type, Map<String, Object> properties) {
+    System.out.println(srcElementId);
+    System.out.println(dstElementId);
+    System.out.println(type);
+    
+    Neo4jNodeEntity src = this.getNode(srcElementId);
+    Neo4jNodeEntity dst = this.getNode(dstElementId);
+    
+    try (Transaction tx = db.beginTx()) {
+      Node nSrc = tx.getNodeByElementId(src.getElementId());
+      Node nDst = tx.getNodeByElementId(dst.getElementId());
+      System.out.println(nSrc);
+      System.out.println(nDst);
+      RelationshipType rType = RelationshipType.withName(type);
+      Relationship r = nSrc.createRelationshipTo(nDst, rType);
+      
+      if (properties != null) {
+        for (Map.Entry<String, Object> property : properties.entrySet()) {
+          r.setProperty(property.getKey(), property.getValue());
+        }
+      }
+      //nSrc.getRelationships(Direction.OUTGOING, rType);
+      
+      r.setProperty("_created_at", System.currentTimeMillis());
+      r.setProperty("_updated_at", System.currentTimeMillis());
+      
+      String eId = r.getElementId();
+      System.out.println(r);
+      System.out.println(eId);
+      tx.commit();
+      return eId;
+    }
+  }
+  
+  public List<List<Object>> getConnectedNodes(String eId, Direction dir, RelationshipType type) {
+    //Map<Object, Neo4jNodeEntity> res = new HashMap<>();
+    List<List<Object>> res = new ArrayList<>();
+    try (Transaction tx = db.beginTx()) {
+      Node node = tx.getNodeByElementId(eId);
+      ResourceIterable<Relationship> it = null;
+      if (type != null) {
+        it = node.getRelationships(dir, type);
+      } else {
+        it = node.getRelationships(dir);
+      }
+          
+      for (Relationship r: it) {
+          String rElemId = r.getElementId();
+          String rType = r.getType().name();
+          Map<String, Object> props = r.getAllProperties();
+          Map<String, Object> rData = new HashMap<>();
+          rData.put("elementId", rElemId);
+          rData.put("t", rType);
+          rData.put("properties", props);
+          Neo4jNodeEntity other = new Neo4jNodeEntity(r.getOtherNode(node));
+          List<Object> row = List.of(rData, other);
+          res.add(row);
+        }
+      }
+    
+    return res;
   }
   
   public void addEdge(Neo4jNodeEntity v1, Neo4jNodeEntity v2, String type) {

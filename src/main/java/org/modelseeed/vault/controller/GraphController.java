@@ -7,6 +7,7 @@ import org.modelseeed.vault.core.Neo4jNodeEntity;
 import org.modelseeed.vault.dto.DataTablesResponse;
 import org.modelseeed.vault.dto.NodePageRequest;
 import org.modelseeed.vault.service.GraphService;
+import org.neo4j.graphdb.Direction;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,7 +42,31 @@ public class GraphController {
     public Neo4jNodeEntity addNode(@PathVariable String type, @PathVariable String id,
                           @RequestParam(defaultValue = "{}") Map<String, Object> properties, 
                           @RequestParam(required = false) List<String> labels) {
+      System.out.println("/node/{type}/{id}" + " " + properties);
       return this.graphService.addNode(type, id, properties);
+    }
+    
+    @GetMapping("/node/{type}")
+    public List<Neo4jNodeEntity> getNodes(@PathVariable String type, 
+        @RequestParam(required = false) Integer limit) {
+      System.out.println(type + " " + limit);
+      return this.graphService.listNodeByType(type, limit);
+    }
+    
+    @GetMapping("/node/{type}/{id}/parent")
+    public List<List<Object>> getNodeParents(@PathVariable String type, 
+        @PathVariable String id,
+        @RequestParam(required = false) String edgeType) {
+      System.out.println("!!!!!!!!!!!!!" + type + "" + id);
+      return this.graphService.getParents(id, type, edgeType);
+    }
+    
+    @GetMapping("/node/{type}/{id}/child")
+    public List<List<Object>> getNodeChilds(@PathVariable String type, 
+        @PathVariable String id,
+        @RequestParam(required = false) String edgeType) {
+      System.out.println("XXXXXXXXXXXXXXXXX" + type + "" + id);
+      return this.graphService.getChilds(id, type, edgeType);
     }
     
     @GetMapping("/node/page")
@@ -64,11 +89,18 @@ public class GraphController {
         return this.graphService.pageNodes(request);
     }
 
-    @PostMapping("/edge")
-    public String addEdge(@RequestParam Map<String, Object> data) {
-      //this.graphService.addNode(null, data);
-        return null;
+    @PostMapping("/edge/{src}/{dst}/{type}")
+    public String addEdge(@PathVariable String src, @PathVariable String dst, @PathVariable String type, 
+        @RequestParam Map<String, Object> data) {
+      System.out.println("addEdge /edge/{src}/{dst}/{type}");
+      System.out.println(src);
+      System.out.println(dst);
+      System.out.println(type);
+      System.out.println(data);
+      return this.graphService.addEdge(src, dst, type, data);
     }
+    
+    
     
     @GetMapping("/node/elementId/{eId}")
     public Neo4jNodeEntity getNodeByElementId(@PathVariable String eId) {
@@ -79,6 +111,21 @@ public class GraphController {
     public Neo4jNodeEntity getNode(@PathVariable String type, 
                           @PathVariable String id) {
       return this.graphService.getNode(id, type);
+    }
+    
+    @GetMapping("/node-edge/{eId}")
+    public Map<String, Map<String, Object>> getNodeEdges(@PathVariable String eId, @RequestParam Integer limit) {
+      return this.graphService.getNodeRelationships(eId, Direction.BOTH, limit);
+    }
+    
+    @GetMapping("/node-edge/{eId}/incoming")
+    public Map<String, Map<String, Object>> getNodeEdgesIn(@PathVariable String eId, @RequestParam Integer limit) {
+      return this.graphService.getNodeRelationships(eId, Direction.INCOMING, limit);
+    }
+    
+    @GetMapping("/node-edge/{eId}/outgoing")
+    public Map<String, Map<String, Object>> getNodeEdgesOut(@PathVariable String eId, @RequestParam Integer limit) {
+      return this.graphService.getNodeRelationships(eId, Direction.OUTGOING, limit);
     }
 
     @DeleteMapping("/node/{type}/{id}")

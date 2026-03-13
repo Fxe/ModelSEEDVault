@@ -1,27 +1,36 @@
 package org.modelseeed.vault;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 import org.bson.Document;
 import org.bson.types.Binary;
+import org.modelseeed.rast.RASTClient;
+import org.modelseeed.rast.RPCClient;
+import org.modelseeed.vault.config.Neo4jConfig;
 import org.modelseeed.vault.core.Compress;
 import org.modelseeed.vault.core.Neo4jNodeEntity;
 import org.modelseeed.vault.core.Protein;
 import org.modelseeed.vault.repository.GraphRepository;
+import org.modelseeed.vault.repository.ProteinRepositoryNeo4j;
 import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.io.ByteUnit;
 
+import com.google.common.hash.Hashing;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
@@ -37,6 +46,7 @@ public class App {
   
   static String DEFAULT_DATABASE_NAME = "neo4j";
   static Path DEFAULT_DATABASE_PATH = Paths.get("/graphdb");
+  //;
   
   private static final String MONGO_URI = "mongodb://127.0.0.1:27017";
   private static final String DB_SEQUENCE = "vault_sequence";
@@ -137,14 +147,79 @@ public class App {
     managementService.shutdown();
   }
   
+  public static void vaultTestProtein() {
+    System.out.println("test protein");
+    System.out.println("Loading database...");
+    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(Neo4jConfig.DEFAULT_DATABASE_PATH)
+        .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
+        .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
+        .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
+    System.out.println("Database loaded!");
+    GraphDatabaseService graphDb = managementService.database( DEFAULT_DATABASE_NAME );
+    
+    ProteinRepositoryNeo4j repo = new ProteinRepositoryNeo4j(graphDb);
+    
+    String proteinSequence = "MQWQTKLPLIAILRGITPDEALAHVGAVIDAGFDAVEIPLNSPQWEQSIPAIVDAYGDKALIGAGTVLKPEQVDALARMGCQLIVTPNIHSEVIRRAVGYGMTVCPGCATATEAFTALEAGAQALKIFPSSAFGPQYIKALKAVLPSDIAVFAVGGVTPENLAQWIDAGCAGAGLGSDLYRAGQSVERTAQQAAAFVKAYREAVQ";
+    String sha256 = Hashing.sha256().hashString(proteinSequence, StandardCharsets.UTF_8).toString();
+    
+    try (Transaction tx = graphDb.beginTx()) {
+      tx.findNodes(Protein.LABEL).forEachRemaining(e -> {
+        System.out.println(e.getAllProperties());
+      });
+      tx.commit();
+    } finally {
+      
+    }
+    
+    try (Transaction tx = graphDb.beginTx()) {
+      Node node = tx.findNode(Protein.LABEL, "key", sha256);
+      Protein protein = new Protein(proteinSequence, node);
+      System.out.println(protein.getProperties());
+      tx.commit();
+    } finally {
+      
+    }
+    
+    managementService.shutdown();
+  }
+  
+  public static void testRast() {
+    RASTClient client = new RASTClient();
+    RPCClient rpc = new RPCClient("https://tutorial.theseed.org/services/genome_annotation");
+    
+    List<Object> params = new ArrayList<>();
+    List<Map<String, Object>> features = new ArrayList<>();
+    String sequence = "MKILINKSELNKILKKMNNVIISNNKIKPHHSYFLIEAKEKEINFYANNEYFSVKCNLNKNIDILEQGSLIVKGKIFNDL"
+        + "INGIKEEIITIQEKDQTLLVKTKKTSINLNTINVNEFPRIRFNEKNDLSEFNQFKINYSLLVKGIKKIFHSVSNNREISS"
+        + "KFNGVNFNGSNGKEIFLEASDTYKLSVFEIKQETEPFDFILESNLLSFINSFNPEEDKSIVFYYRKDNKDSFSTEMLISM"
+        + "DNFMISYTSVNEKFPEVNYFFEFEPETKIVVQKNELKDALQRIQTLAQNERTFLCDMQINSSELKIRAIVNNIGNSLEEI"
+        + "SCLKFEGYKLNISFNPSSLLDHIESFESNEINFDFQGNSKYFLITSKSEPELKQILVPSR";
+    Map<String, Object> feature = Map.of("id", "example", "protein_translation", sequence);
+    params.add(Map.of("features", features));
+    params.add(Map.of("stages", client.getStages()));
+    
+    try {
+      Object res = rpc.call("GenomeAnnotation.run_pipeline", params);
+      System.out.println(res);
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (InterruptedException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+  }
+  
   public static void main(String[] args) {
-    vaultTest();
+    //vaultTest();
+    //vaultTestProtein();
+    testRast();
     System.exit(0);
     String sequence = "MSEFPTTARVVIIGGGAVGASCLYHLAKMGWSDCVLLEKNELTAGSTWHAAGNVPTFSTSWSIMNMQRYSTELYRGLGEAVDYPMNYHV"
                     + "TGSIRLAHSKERMQEFERAAGMGRYQGMPIEILNPTETQERYPFLETHDLAGSLYDPHDGDIDPAQLTQ";
     
-    Protein protein1 = new Protein(sequence + "*");
-    Protein protein2 = new Protein(sequence);
+    Protein protein1 = Protein.buildFromSequence(sequence + "*");
+    Protein protein2 = Protein.buildFromSequence(sequence);
     System.out.println(protein1);
     System.out.println(protein2);
     

@@ -80,9 +80,9 @@ public class Neo4jNodeEntity extends AbstractEntity {
     for (Entry<String, Object> e: this.properties.entrySet()) {
       String key = e.getKey();
       if (key.equals("key") || key.equals("_created_at") || key.equals("_updated_at")) {
-        System.out.println("skip " + key);
+        //System.out.println("skip " + key);
       } else {
-        System.out.println("adding propertey: " + key + " " + e.getValue());
+        //System.out.println("adding propertey: " + key + " " + e.getValue());
         filter.put(key, e.getValue());
       }
     }

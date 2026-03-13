@@ -10,33 +10,38 @@ import org.springframework.stereotype.Service;
 @Service
 public class ProteinService {
   
-  private final ProteinRepositoryNeo4j proteinRepository;
+  private final ProteinRepositoryNeo4j proteinGraphRepository;
   private final ProteinRepositoryMongo sequenceRepository;
   
   public ProteinService(ProteinRepositoryNeo4j proteinRepository, 
       ProteinRepositoryMongo sequenceRepository) {
-    this.proteinRepository = proteinRepository;
+    this.proteinGraphRepository = proteinRepository;
     this.sequenceRepository = sequenceRepository;
   }
   
-  public boolean addProtein(String sequence) throws IOException {
-    boolean exists = this.proteinRepository.createProteinIfNotExists(sequence); 
+  public boolean addProtein(Protein protein) throws IOException {
+    boolean exists = this.proteinGraphRepository.createProteinIfNotExists(protein);
     if (!exists) {
-      this.sequenceRepository.storeSequence(sequence);      
+      this.sequenceRepository.storeSequence(protein.getSequence());      
     }
     return exists;
-  } 
-
-  public Protein getProteinBySha256(String sha256) {
+  }
+  
+  public void addAnnotationToProtein(Protein protein, String annotation) {
     
-    return proteinRepository.getProteinBySha256(sha256);
   }
 
-  public Protein getProteinBySequence(String sequence) {
-      return this.proteinRepository.getProteinBySequence(sequence);
+  public Protein getProteinBySha256(String sha256) throws IOException {
+    String sequence = this.sequenceRepository.getSequence(sha256);
+    Protein protein = Protein.buildFromSequence(sequence);
+    return proteinGraphRepository.getProtein(protein);
+  }
+
+  public Protein getProtein(Protein protein) {
+      return this.proteinGraphRepository.getProtein(protein);
   }
 
   public long countProteins() {
-      return proteinRepository.countProteins();
+      return proteinGraphRepository.countProteins();
   }
 }

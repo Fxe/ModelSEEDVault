@@ -17,46 +17,8 @@ public class ProteinRepositoryMongo {
     
     private final MongoCollection<Document> proteinCollection;
     
-    // Standard amino acid vocabulary (20 standard amino acids plus common variants)
-    private static final Set<Character> DEFAULT_PROTEIN_VOCAB = Set.of(
-        'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I', 
-        'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V',
-        'U', 'O', 'B', 'Z', 'J', 'X', '*', '-'  // Extended amino acids and gap characters
-    );
-    
     public ProteinRepositoryMongo(MongoDatabase database, String proteinCollectionName) {
         this.proteinCollection = database.getCollection(proteinCollectionName);
-    }
-    
-    /**
-     * Validates a protein sequence against a vocabulary of allowed characters
-     * @param sequence The protein sequence to validate
-     * @param vocab Set of allowed characters (amino acids)
-     * @return true if sequence is valid, false otherwise
-     */
-    public boolean validateSequence(String sequence, Set<Character> vocab) {
-        if (sequence == null || sequence.isEmpty()) {
-            return false;
-        }
-        
-        // Convert to uppercase for validation
-        String upperSequence = sequence.toUpperCase();
-        
-        for (char c : upperSequence.toCharArray()) {
-            if (!vocab.contains(c)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    
-    /**
-     * Validates a protein sequence against the default amino acid vocabulary
-     * @param sequence The protein sequence to validate
-     * @return true if sequence is valid, false otherwise
-     */
-    public boolean validateSequence(String sequence) {
-        return validateSequence(sequence, DEFAULT_PROTEIN_VOCAB);
     }
     
     /**
@@ -68,12 +30,12 @@ public class ProteinRepositoryMongo {
      */
     public String storeSequence(String sequence) throws IOException {
         // Validate the sequence
-        if (!validateSequence(sequence)) {
+        if (!Protein.validateSequence(sequence)) {
             throw new IllegalArgumentException("Invalid protein sequence: contains non-standard amino acid characters");
         }
         
         // Create protein object to get hash
-        Protein protein = new Protein(sequence);
+        Protein protein = Protein.buildFromSequence(sequence);
         String hash = protein.getHash();
         
         // Compress the sequence
