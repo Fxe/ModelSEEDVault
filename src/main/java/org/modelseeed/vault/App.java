@@ -8,25 +8,50 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.modelseeed.rast.RASTClient;
 import org.modelseeed.rast.RPCClient;
+import org.modelseeed.vault.biodb.biochem.GenericReaction;
+import org.modelseeed.vault.biodb.biochem.GenericReactionFactory;
+import org.modelseeed.vault.biodb.biochem.OntologyBiochemCompound;
+import org.modelseeed.vault.biodb.biochem.OntologyBiochemReaction;
+import org.modelseeed.vault.biodb.biochem.ReactionMapper;
+import org.modelseeed.vault.biodb.biochem.ReactionMatcher;
+import org.modelseeed.vault.biodb.biochem.ReactionMatcherResult;
+import org.modelseeed.vault.biodb.biochem.ReactionMapper.MatchResult;
 import org.modelseeed.vault.config.Neo4jConfig;
 import org.modelseeed.vault.core.Compress;
 import org.modelseeed.vault.core.Neo4jNodeEntity;
 import org.modelseeed.vault.core.Protein;
+import org.modelseeed.vault.core.cobra.Metabolite;
+import org.modelseeed.vault.core.cobra.Model;
+import org.modelseeed.vault.core.cobra.Reaction;
+import org.modelseeed.vault.neo4j.cobra.Neo4jMetabolite;
+import org.modelseeed.vault.neo4j.cobra.Neo4jReaction;
+import org.modelseeed.vault.neo4j.cobra.RelationshipCOBRA;
+import org.modelseeed.vault.repository.CobraModelRepository;
 import org.modelseeed.vault.repository.GraphRepository;
 import org.modelseeed.vault.repository.ProteinRepositoryNeo4j;
 import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
+import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.ResourceIterable;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.io.ByteUnit;
 
@@ -43,14 +68,27 @@ import com.rabbitmq.client.ConnectionFactory;
  * Hello world!
  */
 public class App {
-  
+
   static String DEFAULT_DATABASE_NAME = "neo4j";
-  static Path DEFAULT_DATABASE_PATH = Paths.get("/graphdb");
-  //;
+  static Path DEFAULT_DATABASE_PATH = Paths.get("M:/vault/graphdb");
+  // static Path DEFAULT_DATABASE_PATH = Paths.get("/graphdb");
+  // ;
   
+  public static DatabaseManagementService getDatabaseManagementService() {
+    System.out.println("vault test!");
+    System.out.println("Loading database...");
+    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(DEFAULT_DATABASE_PATH)
+        .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
+        .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
+        .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
+    System.out.println("Database loaded!");
+    return managementService;
+  }
+
+
   private static final String MONGO_URI = "mongodb://127.0.0.1:27017";
   private static final String DB_SEQUENCE = "vault_sequence";
-  
+
   public static void neo4jTest() {
     System.out.println("Loading database...");
     DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(DEFAULT_DATABASE_PATH)
@@ -58,24 +96,25 @@ public class App {
         .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
         .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
     System.out.println("Database loaded!");
-    GraphDatabaseService graphDb = managementService.database( DEFAULT_DATABASE_NAME );
-    
+    GraphDatabaseService graphDb = managementService.database(DEFAULT_DATABASE_NAME);
+
     Transaction tx = graphDb.beginTx();
 
-    //tx.createNode(null)
+    // tx.createNode(null)
     tx.rollback();
-    
+
     System.out.println("Shutdown database...");
     managementService.shutdown();
     System.out.println("Done!");
   }
-  
+
   public static void mongoTest() {
     MongoClient client = MongoClients.create(MONGO_URI);
     MongoDatabase sequenceDatabase = client.getDatabase(DB_SEQUENCE);
     MongoCollection<Document> seqProteins = sequenceDatabase.getCollection("seq_protein");
-    Document docProtein = seqProteins.find(new Document("_id", "146f0fe779bddd1b11b83af6aa8db7c3b082f10c335a1e0cda0e151ede72b499")).first();
-    
+    Document docProtein = seqProteins
+        .find(new Document("_id", "146f0fe779bddd1b11b83af6aa8db7c3b082f10c335a1e0cda0e151ede72b499")).first();
+
     Binary zData = docProtein.get("z_seq", Binary.class);
     try {
       String seq = Compress.decompress(zData);
@@ -107,7 +146,7 @@ public class App {
       e.printStackTrace();
     }
   }
-  
+
   public static void vaultTest() {
     System.out.println("vault test!");
     System.out.println("Loading database...");
@@ -116,77 +155,78 @@ public class App {
         .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
         .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
     System.out.println("Database loaded!");
-    GraphDatabaseService graphDb = managementService.database( DEFAULT_DATABASE_NAME );
-    
+    GraphDatabaseService graphDb = managementService.database(DEFAULT_DATABASE_NAME);
+
     GraphRepository repo = new GraphRepository(graphDb);
-    
+    Transaction tx = graphDb.beginTx();
+
     try {
-      repo.registerEntity("InChI"); 
+      repo.registerEntity("InChI", tx);
     } catch (Exception e) {
       System.out.println("exists!");
     }
     try {
-      repo.registerEntity("SMILES"); 
+      repo.registerEntity("SMILES", tx);
     } catch (Exception e) {
       System.out.println("exists!");
     }
-    //4:a4d4dc85-b194-4676-99ad-043b41065382:7
-    //4:a4d4dc85-b194-4676-99ad-043b41065382:8
+    // 4:a4d4dc85-b194-4676-99ad-043b41065382:7
+    // 4:a4d4dc85-b194-4676-99ad-043b41065382:8
     Neo4jNodeEntity nodeToAdd = new Neo4jNodeEntity("C".repeat(4000) + "O", "SMILES");
-    Neo4jNodeEntity addedNode = repo.addNode(nodeToAdd);
+    Neo4jNodeEntity addedNode = repo.addNode(nodeToAdd, tx);
     System.out.println(addedNode.getElementId());
     System.out.println(addedNode.getEntry());
     System.out.println(addedNode.getType());
-    //repo.addNode("omg1", "InChI", null);
-    //repo.addNode("O", "SMILES", null);
-    //repo.addNode("O", "SMILES", null);
-    
-    Object res = repo.getUniqueConstraint();
+    // repo.addNode("omg1", "InChI", null);
+    // repo.addNode("O", "SMILES", null);
+    // repo.addNode("O", "SMILES", null);
+
+    Object res = repo.getUniqueConstraint(tx);
     System.out.println(res);
-    
+
     managementService.shutdown();
   }
-  
+
   public static void vaultTestProtein() {
     System.out.println("test protein");
     System.out.println("Loading database...");
-    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(Neo4jConfig.DEFAULT_DATABASE_PATH)
-        .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
-        .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
-        .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
+    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(
+        Neo4jConfig.DEFAULT_DATABASE_PATH).setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
+            .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
+            .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
     System.out.println("Database loaded!");
-    GraphDatabaseService graphDb = managementService.database( DEFAULT_DATABASE_NAME );
-    
+    GraphDatabaseService graphDb = managementService.database(DEFAULT_DATABASE_NAME);
+
     ProteinRepositoryNeo4j repo = new ProteinRepositoryNeo4j(graphDb);
-    
+
     String proteinSequence = "MQWQTKLPLIAILRGITPDEALAHVGAVIDAGFDAVEIPLNSPQWEQSIPAIVDAYGDKALIGAGTVLKPEQVDALARMGCQLIVTPNIHSEVIRRAVGYGMTVCPGCATATEAFTALEAGAQALKIFPSSAFGPQYIKALKAVLPSDIAVFAVGGVTPENLAQWIDAGCAGAGLGSDLYRAGQSVERTAQQAAAFVKAYREAVQ";
     String sha256 = Hashing.sha256().hashString(proteinSequence, StandardCharsets.UTF_8).toString();
-    
+
     try (Transaction tx = graphDb.beginTx()) {
       tx.findNodes(Protein.LABEL).forEachRemaining(e -> {
         System.out.println(e.getAllProperties());
       });
       tx.commit();
     } finally {
-      
+
     }
-    
+
     try (Transaction tx = graphDb.beginTx()) {
       Node node = tx.findNode(Protein.LABEL, "key", sha256);
       Protein protein = new Protein(proteinSequence, node);
       System.out.println(protein.getProperties());
       tx.commit();
     } finally {
-      
+
     }
-    
+
     managementService.shutdown();
   }
-  
+
   public static void testRast() {
     RASTClient client = new RASTClient();
     RPCClient rpc = new RPCClient("https://tutorial.theseed.org/services/genome_annotation");
-    
+
     List<Object> params = new ArrayList<>();
     List<Map<String, Object>> features = new ArrayList<>();
     String sequence = "MKILINKSELNKILKKMNNVIISNNKIKPHHSYFLIEAKEKEINFYANNEYFSVKCNLNKNIDILEQGSLIVKGKIFNDL"
@@ -197,7 +237,7 @@ public class App {
     Map<String, Object> feature = Map.of("id", "example", "protein_translation", sequence);
     params.add(Map.of("features", features));
     params.add(Map.of("stages", client.getStages()));
-    
+
     try {
       Object res = rpc.call("GenomeAnnotation.run_pipeline", params);
       System.out.println(res);
@@ -209,27 +249,278 @@ public class App {
       e.printStackTrace();
     }
   }
+
+  public static void vaultTestReadModel() {
+    System.out.println("vault test!");
+    System.out.println("Loading database...");
+    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(DEFAULT_DATABASE_PATH)
+        .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
+        .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
+        .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
+    System.out.println("Database loaded!");
+    GraphDatabaseService graphDb = managementService.database(DEFAULT_DATABASE_NAME);
+
+    // GraphRepository rep = new GraphRepository(graphDb);
+    // GraphService graphService = new GraphService(rep);
+    CobraModelRepository rep = new CobraModelRepository(graphDb);
+
+    Transaction tx = graphDb.beginTx();
+
+    String id = "iAbaylyiv4";
+    String translate = "ModelSEED";
+    Map<String, String> cmpMapping = new HashMap<>();
+    cmpMapping.put("Cytosol", "c");
+    cmpMapping.put("Extraorganism", "e");
+    Neo4jNodeEntity nodeModel = rep.getNode(id, "SBMLModel", tx);
+    Integer compartmentIndex = 0;
+
+    System.out.println(nodeModel);
+
+    Model m = rep.getCobraModel(nodeModel.getNode(), translate, cmpMapping, compartmentIndex, tx);
+
+    Set<String> uspecies = new HashSet<>();
+    Set<String> ureactions = new HashSet<>();
+    for (Metabolite metabolite: m.getMetabolites()) {
+      uspecies.add(metabolite.getId());
+      //System.out.println(metabolite.getId());
+    }
+    for (Reaction reaction: m.getReactions()) {
+      ureactions.add(reaction.getId());
+      System.out.println(reaction.getId());
+      //System.out.println(reaction.getMetabolites());
+    }
+    
+    System.out.println(m.getMetabolites().size() + " " + uspecies.size());
+    System.out.println(m.getReactions().size() + " " + ureactions.size());
+    if (uspecies.size() == m.getMetabolites().size()) {
+      System.out.println("all species unique");
+    }
+    if (ureactions.size() == m.getReactions().size()) {
+      System.out.println("all reactions unique");
+    }
+    tx.rollback();
+
+    System.out.println("Shutdown database...");
+    managementService.shutdown();
+    System.out.println("Done!");
+  }
+
+
+  public static Set<String> match(Neo4jReaction reaction) {
+    /***
+     * for each stoichiometry nodes in reaction fetchs the matching annotation |->
+     * reaction_1 |-> metabolite_A -> metabolite_1 -|-> reaction_2 reaction_A -| |->
+     * metabolite_B -> metabolite_2 -|-> reaction_1 |-> reaction_4 |-> reaction_3
+     * 
+     * reaction_1 intersects all metabolite_1 and metabolite_2 thus reaction_A =
+     * reaction_1
+     * 
+     * to avoid fetching big lists of reactions for example metabolite_1 may have
+     * 200000 reactions we do intersection of the lowest to highest degree if a
+     * intersection fail return null
+     */
+    Map<String, Double> reactionMetabolites = reaction.getMetabolites();
+    int reactionSize = reactionMetabolites.size();
+
+    Map<String, Integer> degreeMap = new HashMap<>();
+    Map<String, Node> nodeMap = new HashMap<>();
+    Map<Integer, List<Node>> degreeToCompound = new HashMap<>();
+    for (Entry<String, Neo4jMetabolite> e : reaction.metaboliteNodes.entrySet()) {
+      Node annotatedCompound = e.getValue().annotation(Label.label("ModelSEEDCompound"));
+      if (annotatedCompound != null) {
+        int degree = annotatedCompound.getDegree(RelationshipType.withName("has_stoichiometry_coefficient"));
+        degreeMap.put(annotatedCompound.getElementId(), degree);
+        nodeMap.put(annotatedCompound.getElementId(), annotatedCompound);
+        degreeToCompound.putIfAbsent(degree, new ArrayList<>());
+        degreeToCompound.get(degree).add(annotatedCompound);
+        // System.out.println(annotatedCompound.getAllProperties() + " " +
+        // annotatedCompound.getLabels());
+      } else {
+        return null;
+      }
+    }
+
+    if (degreeMap.isEmpty()) {
+      return null;
+    }
+
+    // Sort degrees ascending so we intersect the smallest neighbor sets first
+    List<Integer> sortedDegreeList = degreeMap.values().stream().sorted().distinct().collect(Collectors.toList());
+
+    Set<String> intersection = null;
+
+    for (int degree : sortedDegreeList) {
+      for (Node annotatedCompound : degreeToCompound.get(degree)) {
+
+        // Collect all generic reaction elementIds connected to this compound
+        Set<String> reactionIds = new HashSet<>();
+        for (Relationship relStoich : annotatedCompound
+            .getRelationships(RelationshipType.withName("has_stoichiometry_coefficient"))) {
+          Node genericReaction = relStoich.getOtherNode(annotatedCompound);
+          int stoichDegree = genericReaction.getDegree(RelationshipType.withName("has_stoichiometry_coefficient"));
+          if (stoichDegree == reactionSize) {
+            reactionIds.add(genericReaction.getElementId());
+          }
+        }
+
+        if (intersection == null) {
+          // Seed with the first (smallest-degree) compound's reaction set
+          intersection = reactionIds;
+          // System.out.println(degree + " " + annotatedCompound.getProperty("key") + " i
+          // " + intersection.size());
+        } else {
+          // Intersect incrementally — fail fast if already empty
+          intersection.retainAll(reactionIds);
+          // System.out.println(degree + " " + annotatedCompound.getProperty("key") + " i
+          // " + intersection.size());
+          if (intersection.isEmpty()) {
+            return null;
+          }
+        }
+      }
+    }
+
+    // System.out.println("intersection: " + intersection);
+    return intersection;
+    /**
+     * 
+     * if (intersection == null || intersection.size() != 1) { // No unique match
+     * found return null; }
+     * 
+     * //Resolve the single matching elementId back to a Node String matchedId =
+     * intersection.iterator().next(); System.out.println(matchedId);
+     * 
+     * /** for (Relationship relStoich : other.getRelationships(
+     * RelationshipType.withName("has_stoichiometry_coefficient"))) { Node
+     * genericReaction = relStoich.getOtherNode(other); r1.put((String)
+     * genericReaction.getProperty("key"), genericReaction); }
+     * 
+     * degreeMap.entrySet() .stream() .sorted(Map.Entry.comparingByValue())
+     * .forEach(e -> System.out.println(e.getValue() + " " + e.getKey()));
+     * 
+     * return degreeMap;
+     **/
+  }
   
+  public static void vaultTestSBMLRectionInference() {
+    DatabaseManagementService databaseManagementService = getDatabaseManagementService();
+    GraphDatabaseService graphDb = databaseManagementService.database(DEFAULT_DATABASE_NAME);
+    CobraModelRepository rep = new CobraModelRepository(graphDb);
+    //iAbaylyiv4:R_ISOCITDEH_DASH_RXN 4:3779b88f-90cb-49d4-a69d-a7360263bf82:2364
+    
+    Set<String> exclude = new HashSet<>();
+    exclude.add("cpd00067");
+    
+    try (Transaction tx = rep.beginTx()) {
+      
+      Node reactionNode = tx.getNodeByElementId("4:3779b88f-90cb-49d4-a69d-a7360263bf82:2364");
+      String prefix = "iAbaylyiv4";
+      Neo4jReaction reaction = Neo4jReaction.build(reactionNode, prefix, tx);
+      ReactionMatcher matcher = new ReactionMatcher(exclude);
+      ReactionMatcherResult matcherResult = matcher.match(reaction, tx);
+      Map<Node, MatchResult> result = matcherResult.getMatch();
+      System.out.println(result);
+
+      
+      tx.rollback();
+    }
+  }
+
+  public static void vaultTestModelReactionInference() {
+    DatabaseManagementService databaseManagementService = getDatabaseManagementService();
+    GraphDatabaseService graphDb = databaseManagementService.database(DEFAULT_DATABASE_NAME);
+    // GraphRepository rep = new GraphRepository(graphDb);
+    // GraphService graphService = new GraphService(rep);
+    CobraModelRepository rep = new CobraModelRepository(graphDb);
+
+    Transaction tx = graphDb.beginTx();
+    String modelId = "iAbaylyiv4";
+
+    Neo4jNodeEntity nodeModel = rep.getNode(modelId, "SBMLModel", tx);
+    List<List<Object>> modelReactions = rep.getChilds(nodeModel.getNode(),
+        RelationshipType.withName("has_sbml_reaction"), tx);
+    
+    Set<String> exclude = new HashSet<>();
+    exclude.add("cpd00067");
+    ReactionMatcher matcher = new ReactionMatcher(exclude);
+
+    for (List<Object> edgeAndNode : modelReactions) {
+      // @SuppressWarnings("unchecked")
+      // Map<String, Object> rel = (Map<String, Object>) edgeAndNode.get(0);
+      Neo4jNodeEntity node = (Neo4jNodeEntity) edgeAndNode.get(1);
+      Neo4jReaction reaction = Neo4jReaction.build(node.getNode(), modelId, tx);
+      //System.out.println(reaction.stoichiometry.s.keySet());
+      //skip translocation reactions
+      if (!reaction.isTranslocation()) {
+        ReactionMatcherResult matcherResult = matcher.match(reaction, tx);
+        if (matcherResult != null) {
+          Map<Node, MatchResult> result = matcherResult.getMatch();
+          Map<Node, MatchResult> resultNonNull = new HashMap<>();
+          result.forEach((k, v) -> { if (v != null) resultNonNull.put(k, v); });
+          
+          System.out.println(reaction);
+          resultNonNull.forEach((k, v) -> {
+            System.out.println(String.format("\t[%d]%s %s", 
+                k.getProperty("is_obsolete"), k.getProperty("key"), v));
+          });
+          System.out.println();
+        }
+      }
+    }
+
+    tx.rollback();
+
+    System.out.println("Shutdown database...");
+    databaseManagementService.shutdown();
+    System.out.println("Done!");
+  }
+  
+  public static void modelseed() {
+    DatabaseManagementService databaseManagementService = getDatabaseManagementService();
+    GraphDatabaseService graphDb = databaseManagementService.database(DEFAULT_DATABASE_NAME);
+    
+    try (Transaction tx = graphDb.beginTx()) {
+      ResourceIterator<Node> cursor = tx.findNodes(OntologyBiochemReaction.ModelSEEDReaction);
+      while (cursor.hasNext()) {
+        Node node = cursor.next();
+        boolean isObsolete = Integer.valueOf(node.getProperty("is_obsolete").toString()) == 1;
+        if (isObsolete) {
+          if (!node.hasLabel(OntologyBiochemCompound.Disabled)) {
+            node.addLabel(OntologyBiochemCompound.Disabled);
+          }
+        }
+      }
+      tx.commit();
+    }
+    
+    System.out.println("Shutdown database...");
+    databaseManagementService.shutdown();
+    System.out.println("Done!");
+  }
+
   public static void main(String[] args) {
-    //vaultTest();
-    //vaultTestProtein();
-    testRast();
+    // vaultTest();
+    // vaultTestProtein();
+    // testRast();
+     vaultTestReadModel();
+    //vaultTestModelReactionInference();
+    //vaultTestSBMLRectionInference();
+    //modelseed();
     System.exit(0);
     String sequence = "MSEFPTTARVVIIGGGAVGASCLYHLAKMGWSDCVLLEKNELTAGSTWHAAGNVPTFSTSWSIMNMQRYSTELYRGLGEAVDYPMNYHV"
-                    + "TGSIRLAHSKERMQEFERAAGMGRYQGMPIEILNPTETQERYPFLETHDLAGSLYDPHDGDIDPAQLTQ";
-    
+        + "TGSIRLAHSKERMQEFERAAGMGRYQGMPIEILNPTETQERYPFLETHDLAGSLYDPHDGDIDPAQLTQ";
+
     Protein protein1 = Protein.buildFromSequence(sequence + "*");
     Protein protein2 = Protein.buildFromSequence(sequence);
     System.out.println(protein1);
     System.out.println(protein2);
-    
+
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost("192.168.1.22");
     factory.setPort(5672);
     factory.setUsername("admin");
-    factory.setPassword("123456");
-    try (Connection con = factory.newConnection(); 
-         Channel channel = con.createChannel()) {
+    factory.setPassword("123m56");
+    try (Connection con = factory.newConnection(); Channel channel = con.createChannel()) {
       channel.queueDeclare("rast", true, false, false, null);
       {
         String proteinHash = "1xx";

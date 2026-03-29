@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.modelseeed.vault.core.Protein;
 import org.modelseeed.vault.repository.ProteinRepositoryMongo;
 import org.modelseeed.vault.repository.ProteinRepositoryNeo4j;
+import org.neo4j.graphdb.Transaction;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,13 +33,18 @@ public class ProteinService {
   }
 
   public Protein getProteinBySha256(String sha256) throws IOException {
-    String sequence = this.sequenceRepository.getSequence(sha256);
-    Protein protein = Protein.buildFromSequence(sequence);
-    return proteinGraphRepository.getProtein(protein);
+    try (Transaction tx = this.proteinGraphRepository.beginTx()) {
+      String sequence = this.sequenceRepository.getSequence(sha256);
+      Protein protein = Protein.buildFromSequence(sequence);
+      return proteinGraphRepository.getProtein(protein, tx);
+    }
+
   }
 
   public Protein getProtein(Protein protein) {
-      return this.proteinGraphRepository.getProtein(protein);
+    try (Transaction tx = this.proteinGraphRepository.beginTx()) {
+      return this.proteinGraphRepository.getProtein(protein, tx);
+    }
   }
 
   public long countProteins() {

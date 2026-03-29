@@ -1,7 +1,9 @@
 package org.modelseeed.vault.controller;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.modelseeed.vault.core.Neo4jNodeEntity;
 import org.modelseeed.vault.dto.DataTablesResponse;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,6 +31,11 @@ public class GraphController {
         this.graphService = graphService;
     }
     
+    @GetMapping("/node/count")
+    public Map<Set<String>, Integer> count() {
+      return this.graphService.countNodes();
+    }
+    
     @PostMapping("/node/constraint")
     public void registerNode(String type) {
       this.graphService.registerNode(type);
@@ -39,10 +47,12 @@ public class GraphController {
     }
 
     @PostMapping("/node/{type}/{id}")
-    public Neo4jNodeEntity addNode(@PathVariable String type, @PathVariable String id,
-                          @RequestParam(defaultValue = "{}") Map<String, Object> properties, 
-                          @RequestParam(required = false) List<String> labels) {
-      System.out.println("/node/{type}/{id}" + " " + properties);
+    public Neo4jNodeEntity addNode(@PathVariable String type, @PathVariable String id, 
+                          @RequestParam(required = false) List<String> labels,
+                          @RequestBody(required = false) Map<String, Object> properties) {
+      if (properties == null) {
+        properties = new HashMap<>();
+    }
       return this.graphService.addNode(type, id, properties);
     }
     
@@ -57,16 +67,18 @@ public class GraphController {
     public List<List<Object>> getNodeParents(@PathVariable String type, 
         @PathVariable String id,
         @RequestParam(required = false) String edgeType) {
-      System.out.println("!!!!!!!!!!!!!" + type + "" + id);
-      return this.graphService.getParents(id, type, edgeType);
+      //System.out.println("!!!!!!!!!!!!!" + type + "" + id);
+      Neo4jNodeEntity node = this.graphService.getNode(id, type);
+      return this.graphService.getParents(node.getNode(), edgeType);
     }
     
     @GetMapping("/node/{type}/{id}/child")
     public List<List<Object>> getNodeChilds(@PathVariable String type, 
         @PathVariable String id,
         @RequestParam(required = false) String edgeType) {
-      System.out.println("XXXXXXXXXXXXXXXXX" + type + "" + id);
-      return this.graphService.getChilds(id, type, edgeType);
+      //sSystem.out.println("XXXXXXXXXXXXXXXXX" + type + "" + id);
+      Neo4jNodeEntity node = this.graphService.getNode(id, type);
+      return this.graphService.getChilds(node.getNode(), edgeType);
     }
     
     @GetMapping("/node/page")
@@ -91,13 +103,16 @@ public class GraphController {
 
     @PostMapping("/edge/{src}/{dst}/{type}")
     public String addEdge(@PathVariable String src, @PathVariable String dst, @PathVariable String type, 
-        @RequestParam Map<String, Object> data) {
-      System.out.println("addEdge /edge/{src}/{dst}/{type}");
-      System.out.println(src);
-      System.out.println(dst);
-      System.out.println(type);
-      System.out.println(data);
-      return this.graphService.addEdge(src, dst, type, data);
+        @RequestBody(required = false) Map<String, Object> properties) {
+      if (properties == null) {
+        properties = new HashMap<>();
+    }
+      //System.out.println("addEdge /edge/{src}/{dst}/{type}");
+      //System.out.println(src);
+      //System.out.println(dst);
+      //System.out.println(type);
+      //System.out.println(properties);
+      return this.graphService.addEdge(src, dst, type, properties);
     }
     
     

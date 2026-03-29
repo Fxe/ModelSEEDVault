@@ -65,8 +65,8 @@ public class ProteinRepositoryNeo4j extends GraphRepository{
   }
   **/
   
-  public Protein getProtein(Protein protein) {
-    Neo4jNodeEntity node = this.getNode(protein.getHash());
+  public Protein getProtein(Protein protein, Transaction tx) {
+    Neo4jNodeEntity node = this.getNode(protein.getHash(), tx);
     Protein res = new Protein(protein.getSequence(), (String) node.getProperties().get("key"));
     return res;
   }

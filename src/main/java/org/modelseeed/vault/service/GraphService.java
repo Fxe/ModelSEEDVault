@@ -3,6 +3,7 @@ package org.modelseeed.vault.service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.modelseeed.vault.core.Neo4jNodeEntity;
 import org.modelseeed.vault.dto.DataTablesResponse;
@@ -10,7 +11,9 @@ import org.modelseeed.vault.dto.NodePageRequest;
 import org.modelseeed.vault.repository.GraphRepository;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Label;
+import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.Transaction;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -23,70 +26,96 @@ public class GraphService {
     }
     
     public void registerNode(String type) {
-        this.graphRepository.registerEntity(type);
+      try (Transaction tx = this.graphRepository.beginTx()) {
+        this.graphRepository.registerEntity(type, tx);
+        
+        tx.commit();
+      }
+    }
+    
+    public Map<Set<String>, Integer> countNodes() {
+      try (Transaction tx = this.graphRepository.beginTx()) {
+        return this.graphRepository.count(tx);
+      }
     }
     
     public List<Map<String, Object>> listConstraints() {
-        return this.graphRepository.getUniqueConstraint();
+      try (Transaction tx = this.graphRepository.beginTx()) {
+        return this.graphRepository.getUniqueConstraint(tx);
+      }
     }
     
-    public List<List<Object>> getChilds(String key, String type, String relType) {
-      Neo4jNodeEntity node = this.graphRepository.getNode(key, type);
-      if (node == null) {
-        return null;
-      }
+    public List<List<Object>> getChilds(Node node, String relType) {
+      try (Transaction tx = this.graphRepository.beginTx()) {
       RelationshipType relationshipType = null;
       if (relType != null) {
         relationshipType = RelationshipType.withName(relType);
       }
-      return this.graphRepository.getConnectedNodes(node.getElementId(), Direction.OUTGOING, relationshipType);
+      return this.graphRepository.getChilds(node, relationshipType, tx);
+      }
+      
     }
     
-    public List<List<Object>> getParents(String key, String type, String relType) {
-      Neo4jNodeEntity node = this.graphRepository.getNode(key, type);
-      if (node == null) {
-        return null;
-      }
+    public List<List<Object>> getParents(Node node, String relType) {
+      try (Transaction tx = this.graphRepository.beginTx()) {
       RelationshipType relationshipType = null;
       if (relType != null) {
         relationshipType = RelationshipType.withName(relType);
       }
-      return this.graphRepository.getConnectedNodes(node.getElementId(), Direction.INCOMING, relationshipType);
+      return this.graphRepository.getParents(node, relationshipType, tx);
+      }
   }
 
     public Neo4jNodeEntity addNode(String type, String key, Map<String, Object> properties) {
+      try (Transaction tx = this.graphRepository.beginTx()) {
       if (properties == null) {
         properties = new HashMap<>();
       }
       //System.out.println(properties);
       Neo4jNodeEntity node = new Neo4jNodeEntity(key, type, properties);
-      return graphRepository.addNode(node);
+      Neo4jNodeEntity ret = graphRepository.addNode(node, tx);
+      
+      tx.commit();
+      return ret;
+      }
     }
     
     public Map<String, Map<String, Object>> getNodeRelationships(String eId, Direction direction, Integer limit) {
-      Neo4jNodeEntity node = this.graphRepository.getNode(eId);
+      try (Transaction tx = this.graphRepository.beginTx()) {
+      Neo4jNodeEntity node = this.graphRepository.getNode(eId, tx);
       System.out.println(node);
       return this.graphRepository.getNodeRelationships(node, direction, limit);
+      }
     }
     
     public List<Neo4jNodeEntity> listNodeByType(String type, Integer limit) {
+      try (Transaction tx = this.graphRepository.beginTx()) {
       if (limit != null) {
-        return this.graphRepository.listNodeByLabel(Label.label(type), limit);
+        return this.graphRepository.listNodeByLabel(Label.label(type), limit, tx);
       } else {
-        return this.graphRepository.listNodeByLabel(Label.label(type), 1000000);        
+        return this.graphRepository.listNodeByLabel(Label.label(type), 1000000, tx);        
+      }
       }
     }
     
     public Neo4jNodeEntity getNode(String key, String type) {
-      return this.graphRepository.getNode(key, type);
+      try (Transaction tx = this.graphRepository.beginTx()) {
+      return this.graphRepository.getNode(key, type, tx);
+      }
     }
     
     public Neo4jNodeEntity getNode(String elementId) {
-      return this.graphRepository.getNode(elementId);
+      try (Transaction tx = this.graphRepository.beginTx()) {
+      return this.graphRepository.getNode(elementId, tx);
+      }
     }
     
     public String addEdge(String srcElementId, String dstElementId, String type, Map<String, Object> properties) {
-      return this.graphRepository.addEdge(srcElementId, dstElementId, type, properties);
+      try (Transaction tx = this.graphRepository.beginTx()) {
+        String eid = this.graphRepository.addEdge(srcElementId, dstElementId, type, properties, tx);
+        tx.commit();
+      return eid;
+      }
     }
 
     public void addEdge(String type, Map<String, Object> data) {
@@ -103,12 +132,13 @@ public class GraphService {
      * @return DataTablesResponse with paginated node data
      */
     public DataTablesResponse<Neo4jNodeEntity> pageNodes(NodePageRequest request) {
-        try {
+      
+      try (Transaction tx = this.graphRepository.beginTx()) {
             // Get total count without filtering
-            long totalRecords = this.graphRepository.countNodes(null, request.getNodeType());
+            long totalRecords = this.graphRepository.countNodes(null, request.getNodeType(), tx);
             
             // Get filtered count
-            long filteredRecords = this.graphRepository.countNodes(request.getSearchValue(), request.getNodeType());
+            long filteredRecords = this.graphRepository.countNodes(request.getSearchValue(), request.getNodeType(), tx);
             
             // Get paginated data
             List<Neo4jNodeEntity> nodes = this.graphRepository.getPagedNodes(
@@ -117,7 +147,8 @@ public class GraphService {
                 request.getSearchValue(),
                 request.getSortColumn(),
                 request.getSortDirection(),
-                request.getNodeType()
+                request.getNodeType(),
+                tx
             );
             
             return new DataTablesResponse<>(

@@ -104,4 +104,9 @@ public class Neo4jNodeEntity extends AbstractEntity {
     }
     return node.getElementId();
   }
+  
+  @Override
+  public String toString() {
+    return "Node{id='" + this.getElementId() + "', key='" + this.entry + "'}";
+  }
 }
