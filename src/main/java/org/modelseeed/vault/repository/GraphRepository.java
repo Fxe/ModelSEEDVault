@@ -21,6 +21,8 @@ import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 import org.springframework.stereotype.Repository;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Repository
 public class GraphRepository {
   
@@ -34,7 +36,21 @@ public class GraphRepository {
     return this.db.beginTx();
   }
   
-  public Map<Set<String>, Integer> count(Transaction tx) {
+  public Map<String, Integer> countRelationships(Transaction tx) {
+    Map<String, Integer> count = new HashMap<>();
+    for (Relationship o: tx.getAllRelationships()) {
+      String label = o.getType().name();
+      Integer c = count.get(label);
+      if (c == null) {
+        count.put(label, 1);
+      } else {
+        count.put(label, c + 1);
+      }
+    }
+    return count;
+  }
+  
+  public Map<Set<String>, Integer> countNodes(Transaction tx) {
     Map<Set<String>, Integer> count = new HashMap<>();
     for (Node node: tx.getAllNodes()) {
       Set<String> labels = new HashSet<>();
@@ -95,6 +111,41 @@ public class GraphRepository {
     return res;
   }
   
+  private Object normalizeValue(Object value) {
+
+
+    if (value instanceof List<?>) {
+        List<?> list = (List<?>) value;
+
+        if (list.isEmpty()) {
+            return new String[0]; // default fallback
+        }
+
+        Object first = list.get(0);
+
+        if (first instanceof String) {
+            return list.toArray(new String[0]);
+        } else if (first instanceof Integer) {
+            return list.stream().mapToInt(v -> (Integer) v).toArray();
+        } else if (first instanceof Long) {
+            return list.stream().mapToLong(v -> (Long) v).toArray();
+        } else if (first instanceof Double) {
+            return list.stream().mapToDouble(v -> (Double) v).toArray();
+        } else if (first instanceof Boolean) {
+            Boolean[] arr = list.toArray(new Boolean[0]);
+            boolean[] primitive = new boolean[arr.length];
+            for (int i = 0; i < arr.length; i++) {
+                primitive[i] = arr[i];
+            }
+            return primitive;
+        } else {
+            throw new IllegalArgumentException("Unsupported list type: " + first.getClass());
+        }
+    }
+
+    return value;
+}
+  
   public Neo4jNodeEntity addNode(Neo4jNodeEntity node, Transaction tx) {
     Node newNode = tx.createNode(node.getLabel());
     newNode.setProperty("key", node.getEntry());
@@ -105,7 +156,18 @@ public class GraphRepository {
     }
     
     for (Entry<String, Object> e: node.getProperties().entrySet()) {
-      newNode.setProperty(e.getKey(), e.getValue());
+      Object value = e.getValue();
+      if (value instanceof Map<?, ?>) {
+        try {
+          String jsonString = new ObjectMapper().writeValueAsString(value); 
+          newNode.setProperty("_to_json_" + e.getKey(), jsonString);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to serialize Map to JSON", ex);
+        }
+    } else {
+      newNode.setProperty(e.getKey(), normalizeValue(value));
+    }
+      
     }
     
     //for (String k: node.get)

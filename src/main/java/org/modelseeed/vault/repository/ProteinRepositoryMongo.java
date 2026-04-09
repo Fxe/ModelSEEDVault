@@ -1,12 +1,11 @@
 package org.modelseeed.vault.repository;
 
 import java.io.IOException;
-import java.util.Set;
 
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.modelseeed.vault.core.Compress;
-import org.modelseeed.vault.core.Protein;
+import org.modelseeed.vault.core.ProteinSequence;
 import org.springframework.stereotype.Repository;
 
 import com.mongodb.client.MongoCollection;
@@ -28,24 +27,29 @@ public class ProteinRepositoryMongo {
      * @throws IllegalArgumentException if sequence validation fails
      * @throws IOException if compression fails
      */
-    public String storeSequence(String sequence) throws IOException {
+    public String storeSequence(ProteinSequence protein) throws IOException {
         // Validate the sequence
-        if (!Protein.validateSequence(sequence)) {
-            throw new IllegalArgumentException("Invalid protein sequence: contains non-standard amino acid characters");
-        }
+        //if (!ProteinSequence.validateSequence(sequence, ProteinSequence.DEFAULT_PROTEIN_VOCAB)) {
+        //    throw new IllegalArgumentException("Invalid protein sequence: contains non-standard amino acid characters");
+        //}
         
         // Create protein object to get hash
-        Protein protein = Protein.buildFromSequence(sequence);
+        //ProteinSequence protein = ProteinSequence.buildFromSequence(sequence);
         String hash = protein.getHash();
         
         // Compress the sequence
-        byte[] compressedSequence = Compress.compress(sequence);
+        String sequence = protein.getSequence();
+        byte[] compressedSequence = Compress.compress(protein.getSequence());
         
         // Store in MongoDB
         Document doc = new Document("_id", hash)
                 .append("z_seq", new Binary(compressedSequence))
                 .append("original_length", sequence.length())
                 .append("compressed_length", compressedSequence.length);
+        
+        System.out.println(proteinCollection.countDocuments());
+        
+        //proteinCollection.insertOne(doc);
         
         // Use upsert to avoid duplicate key errors
         proteinCollection.replaceOne(

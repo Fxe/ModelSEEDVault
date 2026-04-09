@@ -1,6 +1,9 @@
 package org.modelseeed.vault;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -9,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -20,6 +24,7 @@ import org.bson.Document;
 import org.bson.types.Binary;
 import org.modelseeed.rast.RASTClient;
 import org.modelseeed.rast.RPCClient;
+import org.modelseeed.vault.biodb.OntologyRelationship;
 import org.modelseeed.vault.biodb.biochem.GenericReaction;
 import org.modelseeed.vault.biodb.biochem.GenericReactionFactory;
 import org.modelseeed.vault.biodb.biochem.OntologyBiochemCompound;
@@ -28,13 +33,16 @@ import org.modelseeed.vault.biodb.biochem.ReactionMapper;
 import org.modelseeed.vault.biodb.biochem.ReactionMatcher;
 import org.modelseeed.vault.biodb.biochem.ReactionMatcherResult;
 import org.modelseeed.vault.biodb.biochem.ReactionMapper.MatchResult;
-import org.modelseeed.vault.config.Neo4jConfig;
+import org.modelseeed.vault.config.VaultSettings;
 import org.modelseeed.vault.core.Compress;
 import org.modelseeed.vault.core.Neo4jNodeEntity;
-import org.modelseeed.vault.core.Protein;
+import org.modelseeed.vault.core.ProteinSequence;
 import org.modelseeed.vault.core.cobra.Metabolite;
 import org.modelseeed.vault.core.cobra.Model;
 import org.modelseeed.vault.core.cobra.Reaction;
+import org.modelseeed.vault.neo4j.Export;
+import org.modelseeed.vault.neo4j.Export.ExportGraph;
+import org.modelseeed.vault.neo4j.cobra.LabelCOBRA;
 import org.modelseeed.vault.neo4j.cobra.Neo4jMetabolite;
 import org.modelseeed.vault.neo4j.cobra.Neo4jReaction;
 import org.modelseeed.vault.neo4j.cobra.RelationshipCOBRA;
@@ -55,6 +63,7 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.io.ByteUnit;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.hash.Hashing;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -69,36 +78,62 @@ import com.rabbitmq.client.ConnectionFactory;
  */
 public class App {
 
-  static String DEFAULT_DATABASE_NAME = "neo4j";
-  static Path DEFAULT_DATABASE_PATH = Paths.get("M:/vault/graphdb");
-  // static Path DEFAULT_DATABASE_PATH = Paths.get("/graphdb");
-  // ;
-  
+  private static final String DEFAULT_DATABASE_NAME = "neo4j";
+
+  private static VaultSettings cachedSettings;
+
+  private static VaultSettings settings() {
+    if (cachedSettings == null) {
+      try {
+        cachedSettings = VaultSettings.load();
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to load vault-config.xml", e);
+      }
+    }
+    return cachedSettings;
+  }
+
   public static DatabaseManagementService getDatabaseManagementService() {
     System.out.println("vault test!");
     System.out.println("Loading database...");
-    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(DEFAULT_DATABASE_PATH)
-        .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
-        .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
-        .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
+    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(Paths.get(settings().getNeo4jPath()))
+        .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(settings().getNeo4jPagecacheMemoryMb()))
+        .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(settings().getNeo4jTransactionTimeoutSecs()))
+        .setConfig(GraphDatabaseSettings.preallocate_logical_logs, settings().getNeo4jPreallocateLogicalLogs()).build();
     System.out.println("Database loaded!");
     return managementService;
   }
+  
+  public static void exportRelationships() {
+    System.out.println("Loading database...");
+    DatabaseManagementService managementService = getDatabaseManagementService();
+    GraphDatabaseService graphDb = managementService.database(DEFAULT_DATABASE_NAME);
+    
+    try (Transaction tx = graphDb.beginTx()) {
+      ExportGraph g = Export.exportRelationships(tx, Set.of(
+          OntologyRelationship.has_annotation_event));
+      Export.writeToFile(g, new File("M:/vault/annotation_v1.json"));
+    }
+    
+    managementService.shutdown();
+  }
 
-
-  private static final String MONGO_URI = "mongodb://127.0.0.1:27017";
-  private static final String DB_SEQUENCE = "vault_sequence";
+  
 
   public static void neo4jTest() {
     System.out.println("Loading database...");
-    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(DEFAULT_DATABASE_PATH)
-        .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
-        .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
-        .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
+    DatabaseManagementService managementService = getDatabaseManagementService();
     System.out.println("Database loaded!");
     GraphDatabaseService graphDb = managementService.database(DEFAULT_DATABASE_NAME);
 
     Transaction tx = graphDb.beginTx();
+    Node node = tx.findNode(LabelCOBRA.SBMLSpecies, "key", "iAbaylyiv4:M_ANTHRANILATE_Cytosol");
+    //Node node = tx.getNodeByElementId("4:565e9de0-64a0-4532-a9a2-ec5de2c8db36:1375");
+    List<String> l = new ArrayList<>();
+    l.add("a");
+    l.add("b");
+    node.setProperty("list", l);
+    System.out.println(node.getAllProperties());
 
     // tx.createNode(null)
     tx.rollback();
@@ -109,8 +144,8 @@ public class App {
   }
 
   public static void mongoTest() {
-    MongoClient client = MongoClients.create(MONGO_URI);
-    MongoDatabase sequenceDatabase = client.getDatabase(DB_SEQUENCE);
+    MongoClient client = MongoClients.create(settings().getMongoUri());
+    MongoDatabase sequenceDatabase = client.getDatabase(settings().getMongoDatabase());
     MongoCollection<Document> seqProteins = sequenceDatabase.getCollection("seq_protein");
     Document docProtein = seqProteins
         .find(new Document("_id", "146f0fe779bddd1b11b83af6aa8db7c3b082f10c335a1e0cda0e151ede72b499")).first();
@@ -150,10 +185,7 @@ public class App {
   public static void vaultTest() {
     System.out.println("vault test!");
     System.out.println("Loading database...");
-    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(DEFAULT_DATABASE_PATH)
-        .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
-        .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
-        .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
+    DatabaseManagementService managementService = getDatabaseManagementService();
     System.out.println("Database loaded!");
     GraphDatabaseService graphDb = managementService.database(DEFAULT_DATABASE_NAME);
 
@@ -190,10 +222,7 @@ public class App {
   public static void vaultTestProtein() {
     System.out.println("test protein");
     System.out.println("Loading database...");
-    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(
-        Neo4jConfig.DEFAULT_DATABASE_PATH).setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
-            .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
-            .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
+    DatabaseManagementService managementService = getDatabaseManagementService();
     System.out.println("Database loaded!");
     GraphDatabaseService graphDb = managementService.database(DEFAULT_DATABASE_NAME);
 
@@ -203,7 +232,7 @@ public class App {
     String sha256 = Hashing.sha256().hashString(proteinSequence, StandardCharsets.UTF_8).toString();
 
     try (Transaction tx = graphDb.beginTx()) {
-      tx.findNodes(Protein.LABEL).forEachRemaining(e -> {
+      tx.findNodes(ProteinSequence.LABEL).forEachRemaining(e -> {
         System.out.println(e.getAllProperties());
       });
       tx.commit();
@@ -212,8 +241,8 @@ public class App {
     }
 
     try (Transaction tx = graphDb.beginTx()) {
-      Node node = tx.findNode(Protein.LABEL, "key", sha256);
-      Protein protein = new Protein(proteinSequence, node);
+      Node node = tx.findNode(ProteinSequence.LABEL, "key", sha256);
+      ProteinSequence protein = new ProteinSequence(proteinSequence, node);
       System.out.println(protein.getProperties());
       tx.commit();
     } finally {
@@ -252,11 +281,7 @@ public class App {
 
   public static void vaultTestReadModel() {
     System.out.println("vault test!");
-    System.out.println("Loading database...");
-    DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(DEFAULT_DATABASE_PATH)
-        .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
-        .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
-        .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true).build();
+    DatabaseManagementService managementService = getDatabaseManagementService();
     System.out.println("Database loaded!");
     GraphDatabaseService graphDb = managementService.database(DEFAULT_DATABASE_NAME);
 
@@ -499,10 +524,12 @@ public class App {
   }
 
   public static void main(String[] args) {
+    //neo4jTest();
+    exportRelationships();
     // vaultTest();
     // vaultTestProtein();
     // testRast();
-     vaultTestReadModel();
+    // vaultTestReadModel();
     //vaultTestModelReactionInference();
     //vaultTestSBMLRectionInference();
     //modelseed();
@@ -510,14 +537,14 @@ public class App {
     String sequence = "MSEFPTTARVVIIGGGAVGASCLYHLAKMGWSDCVLLEKNELTAGSTWHAAGNVPTFSTSWSIMNMQRYSTELYRGLGEAVDYPMNYHV"
         + "TGSIRLAHSKERMQEFERAAGMGRYQGMPIEILNPTETQERYPFLETHDLAGSLYDPHDGDIDPAQLTQ";
 
-    Protein protein1 = Protein.buildFromSequence(sequence + "*");
-    Protein protein2 = Protein.buildFromSequence(sequence);
+    ProteinSequence protein1 = ProteinSequence.buildFromSequence(sequence + "*");
+    ProteinSequence protein2 = ProteinSequence.buildFromSequence(sequence);
     System.out.println(protein1);
     System.out.println(protein2);
 
     ConnectionFactory factory = new ConnectionFactory();
-    factory.setHost("192.168.1.22");
-    factory.setPort(5672);
+    factory.setHost(settings().getRabbitHost());
+    factory.setPort(settings().getRabbitPort());
     factory.setUsername("admin");
     factory.setPassword("123m56");
     try (Connection con = factory.newConnection(); Channel channel = con.createChannel()) {

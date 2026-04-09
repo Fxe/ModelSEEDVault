@@ -3,7 +3,6 @@ package org.modelseeed.vault.biodb.biochem;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.modelseeed.vault.neo4j.cobra.LabelCOBRA;
 import org.neo4j.driver.exceptions.value.ValueException;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Node;

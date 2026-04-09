@@ -11,10 +11,9 @@ import java.util.stream.StreamSupport;
 
 import org.modelseeed.vault.biodb.biochem.GenericReaction;
 import org.modelseeed.vault.biodb.biochem.GenericReactionFactory;
+import org.modelseeed.vault.biodb.biochem.ReactionMapper.MatchResult;
 import org.modelseeed.vault.biodb.biochem.ReactionMatcher;
 import org.modelseeed.vault.biodb.biochem.ReactionMatcherResult;
-import org.modelseeed.vault.biodb.biochem.ReactionMapper.MatchResult;
-import org.modelseeed.vault.config.CorsConfig;
 import org.modelseeed.vault.core.Neo4jNodeEntity;
 import org.modelseeed.vault.core.cobra.Model;
 import org.modelseeed.vault.neo4j.cobra.LabelCOBRA;
@@ -30,13 +29,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class CobraModelService {
 
-    private final CorsConfig corsConfig;
-  
   private final CobraModelRepository repository;
   
-  public CobraModelService(CobraModelRepository repository, CorsConfig corsConfig) {
+  public CobraModelService(CobraModelRepository repository) {
     this.repository = repository;
-    this.corsConfig = corsConfig;
   }
   
   public Model getModel(String modelId, String translate, Map<String, String> translationCompartment) {

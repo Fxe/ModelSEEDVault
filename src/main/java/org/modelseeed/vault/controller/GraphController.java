@@ -1,5 +1,6 @@
 package org.modelseeed.vault.controller;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,8 +33,13 @@ public class GraphController {
     }
     
     @GetMapping("/node/count")
-    public Map<Set<String>, Integer> count() {
+    public Map<Set<String>, Integer> countNodes() {
       return this.graphService.countNodes();
+    }
+    
+    @GetMapping("/relationship/count")
+    public Map<String, Integer> countRelationships() {
+      return this.graphService.countRelationships();
     }
     
     @PostMapping("/node/constraint")
@@ -53,7 +59,44 @@ public class GraphController {
       if (properties == null) {
         properties = new HashMap<>();
     }
-      return this.graphService.addNode(type, id, properties);
+      if (labels == null) {
+        labels = new ArrayList<>();
+      }
+      if (labels.contains(type)) {
+        throw new IllegalArgumentException("bad type/labels");
+      }
+      return this.graphService.addNode(type, id, labels, properties);
+    }
+    
+    public record ParamBulkNode (
+        String type, String id, List<String> labels,  Map<String, Object> properties
+        ) {};
+        
+    public record ParamBulkEdge (
+            String srcElementId, String dstElementId, String type,  Map<String, Object> properties
+            ) {};
+    
+    @PostMapping("/bulk/nodes")
+    public Map<String, String> addBulkNodes(@RequestBody(required = false) List<ParamBulkNode> nodes) {
+      Map<String, String> res = new HashMap<>();
+      for (ParamBulkNode node: nodes) {
+        Neo4jNodeEntity newNode = this.graphService.addNode(
+            node.type, node.id, node.labels, node.properties);
+        res.put(String.format("%s/%s", newNode.getLabel(), newNode.getEntry()), newNode.getElementId());
+      }
+      return res;
+    }
+    
+    @PostMapping("/bulk/edges")
+    public Map<List<String>, String> addBulkEdges(@RequestBody(required = false) List<ParamBulkEdge> edges) {
+      Map<List<String>, String> res = new HashMap<>();
+      for (ParamBulkEdge edge: edges) {
+        String edgeElementId =  this.graphService.addEdge(edge.srcElementId, edge.dstElementId, 
+            edge.type, edge.properties);
+        List<String> l = List.of(edge.srcElementId, edge.type, edge.dstElementId);
+        res.put(l, edgeElementId);
+      }
+      return res;
     }
     
     @GetMapping("/node/{type}")

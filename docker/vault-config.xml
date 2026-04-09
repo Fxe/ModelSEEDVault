@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+    <comment>Docker deployment configuration — uses Docker Compose service names as hostnames.</comment>
+    <entry key="vault.neo4j.path">graphdb</entry>
+    <entry key="vault.neo4j.pagecache-memory-mb">512</entry>
+    <entry key="vault.neo4j.transaction-timeout-seconds">60</entry>
+    <entry key="vault.neo4j.preallocate-logical-logs">true</entry>
+    <entry key="vault.mongodb.uri">mongodb://mongodb:27017</entry>
+    <entry key="vault.mongodb.database">vault_sequence</entry>
+    <entry key="vault.mongodb.protein-collection">test_protein_collection</entry>
+    <entry key="vault.mongodb.dna-collection">test_dna_collection</entry>
+    <entry key="vault.rabbitmq.host">rabbitmq</entry>
+    <entry key="vault.rabbitmq.port">5672</entry>
+</properties>

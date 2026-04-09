@@ -49,6 +49,26 @@ public class Neo4jNodeEntity extends AbstractEntity {
       this.addProperty(k, properties.get(k));
     } 
   }
+  
+  public Neo4jNodeEntity(String key, String type, Iterable<String> labels, Map<String, Object> properties) {
+    this(key, type);
+    for (String k: properties.keySet()) {
+      this.addProperty(k, properties.get(k));
+    }
+    for (String l: labels) {
+      this.labels.add(l);
+    }
+  }
+  
+  public Neo4jNodeEntity(String key, Label type, Iterable<String> labels, Map<String, Object> properties) {
+    this(key, type.name());
+    for (String k: properties.keySet()) {
+      this.addProperty(k, properties.get(k));
+    }
+    for (String l: labels) {
+      this.labels.add(l);
+    }
+  }
 
   @Override
   public void setType(String type) {

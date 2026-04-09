@@ -1,6 +1,5 @@
 package org.modelseeed.vault.config;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 
@@ -13,41 +12,52 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.io.ByteUnit;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class Neo4jConfig {
-  
-  private final String DEFAULT_DATABASE_NAME = "neo4j";
-  //public static Path DEFAULT_DATABASE_PATH = Paths.get("graphdb");
-  public static Path DEFAULT_DATABASE_PATH = Paths.get("M:/vault/graphdb");
-  
+
+  private static final String DEFAULT_DATABASE_NAME = "neo4j";
+
+  @Value("${vault.neo4j.path}")
+  private String neo4jPath;
+
+  @Value("${vault.neo4j.pagecache-memory-mb}")
+  private long pagecacheMemoryMb;
+
+  @Value("${vault.neo4j.transaction-timeout-seconds}")
+  private long transactionTimeoutSeconds;
+
+  @Value("${vault.neo4j.preallocate-logical-logs}")
+  private boolean preallocateLogicalLogs;
+
   private DatabaseManagementService dbms;
-  
+
   @Bean
   GraphDatabaseService graphDatabaseService() {
-    dbms = new DatabaseManagementServiceBuilder(DEFAULT_DATABASE_PATH)
-          .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(512))
-          .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(60))
-          .setConfig(GraphDatabaseSettings.preallocate_logical_logs, true)
+    dbms = new DatabaseManagementServiceBuilder(Paths.get(neo4jPath))
+          .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(pagecacheMemoryMb))
+          .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(transactionTimeoutSeconds))
+          .setConfig(GraphDatabaseSettings.preallocate_logical_logs, preallocateLogicalLogs)
           .build();
-      GraphDatabaseService db = dbms.database(DEFAULT_DATABASE_NAME);
+    GraphDatabaseService db = dbms.database(DEFAULT_DATABASE_NAME);
 
-      try (Transaction tx = db.beginTx()) {
-          tx.schema()
-            .constraintFor(Label.label("Protein"))
-            .assertPropertyIsUnique("sha256")
-            .withName("protein_sha256_unique")
-            .create();
-          tx.commit();
-      } catch (Exception e) {
-          System.out.println("Constraint may already exist: " + e.getMessage());
-      }
+    try (Transaction tx = db.beginTx()) {
+        tx.schema()
+          .constraintFor(Label.label("ProteinSequence"))
+          .assertPropertyIsUnique("sha256")
+          .withName("protein_sha256_unique")
+          .create();
+        tx.commit();
+    } catch (Exception e) {
+        System.out.println("Constraint may already exist: " + e.getMessage());
+    }
 
-      return db;
+    return db;
   }
-  
+
   @PreDestroy
   public void shutdown() {
     if (dbms != null) {

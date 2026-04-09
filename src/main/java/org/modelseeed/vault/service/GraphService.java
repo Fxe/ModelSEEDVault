@@ -35,7 +35,13 @@ public class GraphService {
     
     public Map<Set<String>, Integer> countNodes() {
       try (Transaction tx = this.graphRepository.beginTx()) {
-        return this.graphRepository.count(tx);
+        return this.graphRepository.countNodes(tx);
+      }
+    }
+    
+    public Map<String, Integer> countRelationships() {
+      try (Transaction tx = this.graphRepository.beginTx()) {
+        return this.graphRepository.countRelationships(tx);
       }
     }
     
@@ -66,7 +72,7 @@ public class GraphService {
       }
   }
 
-    public Neo4jNodeEntity addNode(String type, String key, Map<String, Object> properties) {
+    public Neo4jNodeEntity addNode(String type, String key, List<String> labels, Map<String, Object> properties) {
       try (Transaction tx = this.graphRepository.beginTx()) {
       if (properties == null) {
         properties = new HashMap<>();

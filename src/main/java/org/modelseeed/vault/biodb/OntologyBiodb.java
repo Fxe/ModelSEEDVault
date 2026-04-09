@@ -8,6 +8,7 @@ public enum OntologyBiodb implements Label {
   UniProKBAccession,
   UniProKBSubcellularLocation,
   Name,
-  Protein,
+  ProteinSequence,
+  DNASequence,
   OntologyECO,
 }

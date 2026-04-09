@@ -3,7 +3,7 @@ package org.modelseeed.vault.controller;
 import java.io.IOException;
 import java.util.Map;
 
-import org.modelseeed.vault.core.Protein;
+import org.modelseeed.vault.core.ProteinSequence;
 import org.modelseeed.vault.service.ProteinService;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,19 +25,20 @@ public class ProteinController {
   }
   
   @PostMapping("/")
-  public boolean addProtein(@RequestBody String sequence) throws IOException {
-    Protein protein = Protein.buildFromSequence(sequence);
+  public String addProtein(@RequestBody String sequence) throws IOException {
+    sequence = sequence.strip().replace("\r", "").replace("\n", "").replace("\"", "");
+    ProteinSequence protein = ProteinSequence.buildFromSequence(sequence);
     return proteinService.addProtein(protein);
   }
   
   @GetMapping("/sha256/{sha256}")
-  public Protein getProteinBySha256(@PathVariable String sha256) throws IOException {
+  public ProteinSequence getProteinBySha256(@PathVariable String sha256) throws IOException {
       return this.proteinService.getProteinBySha256(sha256);
   }
 
   @GetMapping("/sequence/{sequence}")
-  public Protein getProteinBySequence(@PathVariable String sequence) {
-    Protein protein = Protein.buildFromSequence(sequence);
+  public ProteinSequence getProteinBySequence(@PathVariable String sequence) {
+    ProteinSequence protein = ProteinSequence.buildFromSequence(sequence);
       return this.proteinService.getProtein(protein);
   }
   
@@ -45,7 +46,7 @@ public class ProteinController {
   public void addProteinAnnotation(@PathVariable String sha256, 
                                    @PathVariable String type,
                                    @RequestBody Map<String, Object> method) throws IOException {
-    Protein protein = this.getProteinBySha256(sha256);
+    ProteinSequence protein = this.getProteinBySha256(sha256);
     if (protein == null) {
       throw new IllegalArgumentException("Protein not found: " + sha256);
     }

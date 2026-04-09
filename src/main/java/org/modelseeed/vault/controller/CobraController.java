@@ -6,14 +6,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.modelseeed.vault.core.Neo4jNodeEntity;
-import org.modelseeed.vault.core.cobra.Metabolite;
 import org.modelseeed.vault.core.cobra.Model;
-import org.modelseeed.vault.core.cobra.Reaction;
-import org.modelseeed.vault.neo4j.cobra.Neo4jReaction;
 import org.modelseeed.vault.service.CobraModelService;
 import org.modelseeed.vault.service.CobraModelService.ReactionInferecenResult;
-import org.modelseeed.vault.service.GraphService;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,11 +24,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 @CrossOrigin
 public class CobraController {
   
-  private GraphService graphService;
   private CobraModelService cobraModelService;
   
-  public CobraController(GraphService graphService, CobraModelService cobraModelService) {
-    this.graphService = graphService;
+  public CobraController(CobraModelService cobraModelService) {
     this.cobraModelService = cobraModelService;
 }
   

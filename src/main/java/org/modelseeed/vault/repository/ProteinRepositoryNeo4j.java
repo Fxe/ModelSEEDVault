@@ -1,12 +1,18 @@
 package org.modelseeed.vault.repository;
 
-import org.springframework.stereotype.Repository;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.modelseeed.vault.biodb.OntologyBiodb;
 import org.modelseeed.vault.core.FunctionalAnnotation;
 import org.modelseeed.vault.core.Neo4jNodeEntity;
-import org.modelseeed.vault.core.Protein;
+import org.modelseeed.vault.core.ProteinSequence;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
+import org.springframework.stereotype.Repository;
 
 @Repository
 public class ProteinRepositoryNeo4j extends GraphRepository{
@@ -15,13 +21,11 @@ public class ProteinRepositoryNeo4j extends GraphRepository{
     super(db);
   }
   
-  public long countProteins() {
-    try (Transaction tx = db.beginTx()) {
-        return tx.findNodes(Protein.LABEL).stream().count();
-    }
+  public long countProteins(Transaction tx) {
+        return tx.findNodes(ProteinSequence.LABEL).stream().count();
   }
   
-  public void addAnnotationToProtein(Protein protein, FunctionalAnnotation annotation) {
+  public void addAnnotationToProtein(ProteinSequence protein, FunctionalAnnotation annotation) {
     Node proteinNode = this.getProteinNode(protein);
     if (proteinNode == null) {
       return;
@@ -39,10 +43,10 @@ public class ProteinRepositoryNeo4j extends GraphRepository{
     return null;
   }
   
-  public Node getProteinNode(Protein protein) {
+  public Node getProteinNode(ProteinSequence protein) {
     try (Transaction tx = db.beginTx()) {
       if (protein.getHash() != null) {
-        Node node = tx.findNode(Protein.LABEL, "sha256", protein.getHash());
+        Node node = tx.findNode(ProteinSequence.LABEL, "sha256", protein.getHash());
         if (node != null) {
           return node;
         }
@@ -65,26 +69,41 @@ public class ProteinRepositoryNeo4j extends GraphRepository{
   }
   **/
   
-  public Protein getProtein(Protein protein, Transaction tx) {
-    Neo4jNodeEntity node = this.getNode(protein.getHash(), tx);
-    Protein res = new Protein(protein.getSequence(), (String) node.getProperties().get("key"));
+  public ProteinSequence getProtein(ProteinSequence protein, Transaction tx) {
+    Neo4jNodeEntity node = this.getNode(protein.getHash(), OntologyBiodb.ProteinSequence.name(), tx);
+    //Neo4jNodeEntity node = this.getNode(protein.getHash(), tx);
+    ProteinSequence res = new ProteinSequence(protein.getSequence(), (String) node.getProperties().get("key"));
     return res;
   }
   
-  public boolean createProteinIfNotExists(Protein protein) {
-    try (Transaction tx = db.beginTx()) {
+  public static record CreateIfNotExistsResult(String elmenetId, boolean created) {}
+  
+  public CreateIfNotExistsResult createProteinIfNotExists(ProteinSequence protein, Transaction tx) {
+      Node nodeFound = tx.findNode(OntologyBiodb.ProteinSequence, "key", protein.getHash());
+      /**
         boolean exists = tx.findNodes(Protein.LABEL)
                            .stream()
                            .anyMatch(node -> protein.getHash().equals(node.getProperty("key", null)));
+                           **/
+      boolean exists = nodeFound != null;
 
         if (!exists) {
-            var node = tx.createNode(Protein.LABEL);
-            node.setProperty("key", protein.getHash());
-            node.setProperty("type", "Protein");
+          Map<String, Object> properties = new HashMap<>();
+          Set<String> labels = new HashSet<>();
+          Neo4jNodeEntity node = new Neo4jNodeEntity(protein.getHash(), 
+              OntologyBiodb.ProteinSequence, labels, properties);
+          Neo4jNodeEntity res = this.addNode(node, tx);
+          
+          //this.addNode(, "Protein", properties, tx);
+            //var node = tx.createNode(Protein.LABEL);
+            //node.setProperty("key", protein.getHash());
+            //node.setProperty("type", "Protein");
+          return new CreateIfNotExistsResult(res.getElementId(), true);
+        } else {
+          
+          return new CreateIfNotExistsResult(nodeFound.getElementId(), false);          
         }
-        tx.commit();
-        return exists;
-    }
+    
   }
   
   public boolean createAnnotationIfNotExists(FunctionalAnnotation annotation) {

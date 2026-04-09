@@ -63,7 +63,7 @@ public class Neo4jReaction extends Reaction {
       Transaction tx) {
     String prefix = null;
     for (Relationship r: node.getRelationships(
-        Direction.INCOMING, RelationshipCOBRA.has_sbml_reaction)) {
+        Direction.INCOMING, RelationshipCOBRA.has_reaction)) {
       Node maybeModelNode = r.getOtherNode(node);
       if (maybeModelNode.hasLabel(LabelCOBRA.SBMLModel)) {
         if (prefix == null) {

@@ -1,29 +1,45 @@
 package org.modelseeed.vault.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 
 @Configuration
 public class MongoConfig {
+
+  @Value("${vault.mongodb.uri}")
+  private String mongoUri;
+
+  @Value("${vault.mongodb.database}")
+  private String mongoDatabase;
+
+  @Value("${vault.mongodb.protein-collection}")
+  private String proteinCollection;
   
-  private static final String MONGO_URI = "mongodb://192.168.1.18:27017";
-  private static final String DB_SEQUENCE = "vault_sequence";
-  
+  @Value("${vault.mongodb.dna-collection}")
+  private String dnaCollection;
+
   @Bean
   MongoClient mongoClient() {
-    return MongoClients.create(MONGO_URI);
+    return MongoClients.create(mongoUri);
   }
-  
+
   @Bean
   MongoDatabase sequenceDatabase() {
-    return mongoClient().getDatabase(DB_SEQUENCE);
+    return mongoClient().getDatabase(mongoDatabase);
   }
 
   @Bean
   String proteinCollectionName() {
-    return "test_collection";
+    return proteinCollection;
+  }
+  
+  @Bean
+  String dnaCollectionName() {
+    return dnaCollection;
   }
 }

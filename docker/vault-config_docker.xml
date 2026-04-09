@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+    <comment>Vault database configuration. Copy this file next to the JAR to override defaults.</comment>
+    <entry key="vault.neo4j.path">graphdb</entry>
+    <entry key="vault.neo4j.pagecache-memory-mb">512</entry>
+    <entry key="vault.neo4j.transaction-timeout-seconds">60</entry>
+    <entry key="vault.neo4j.preallocate-logical-logs">true</entry>
+    <entry key="vault.mongodb.uri">mongodb://mongodb:27017</entry>
+    <entry key="vault.mongodb.database">vault_sequence</entry>
+    <entry key="vault.mongodb.protein-collection">test_collection</entry>
+    <entry key="vault.rabbitmq.host">localhost</entry>
+    <entry key="vault.rabbitmq.port">5672</entry>
+</properties>
