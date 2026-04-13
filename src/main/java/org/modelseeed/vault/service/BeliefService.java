@@ -18,7 +18,7 @@ public class BeliefService {
     try (Transaction tx = graphRepository.beginTx()) {
       Neo4jNodeEntity node = graphRepository.getNode(elementId, tx);
       
-      Neo4jNodeEntity beliefNode = new Neo4jNodeEntity(elementId, attribute)
+      Neo4jNodeEntity beliefNode = new Neo4jNodeEntity(elementId, attribute);
       //graphRepository.addNode(node, tx)
     }
   }

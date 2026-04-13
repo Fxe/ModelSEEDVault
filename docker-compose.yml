@@ -5,7 +5,7 @@ services:
     ports:
       - "18080:8080"
     volumes:
-      - vault-neo4j-data-test:/app/graphdb
+      - G:\vault\graphdb_v0:/app/graphdb
       #- ./docker/vault-config.xml:/app/vault-config.xml:ro
     depends_on:
       mongodb:

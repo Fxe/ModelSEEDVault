@@ -25,7 +25,9 @@ public class Neo4jNodeEntity extends AbstractEntity {
   }
   
   public Neo4jNodeEntity(Node node) {
-    super(node.getProperty("key").toString(), "");
+    super(node.getProperty("key").toString(), 
+          node.getProperty("_primary_label", "").toString());
+    this.label = Label.label(this.type);
     this.node = node;
     if (this.getEntry().length() > 4000) {
       throw new IllegalArgumentException("key exceeds 4000 length");
@@ -33,7 +35,12 @@ public class Neo4jNodeEntity extends AbstractEntity {
     
     Set<String> labels = new HashSet<>();
     for (Label label: this.node.getLabels()) {
-      labels.add(label.name());
+      
+      if (!label.equals(this.getLabel())) {
+        String labelName = label.name();
+        labels.add(labelName);
+      }
+      
     }
     this.setLabels(labels);
     
@@ -99,7 +106,10 @@ public class Neo4jNodeEntity extends AbstractEntity {
     Map<String, Object> filter = new HashMap<>();
     for (Entry<String, Object> e: this.properties.entrySet()) {
       String key = e.getKey();
-      if (key.equals("key") || key.equals("_created_at") || key.equals("_updated_at")) {
+      if (key.equals("key") || 
+          key.equals("_created_at") || 
+          key.equals("_updated_at") || 
+          key.equals("_primary_label")) {
         //System.out.println("skip " + key);
       } else {
         //System.out.println("adding propertey: " + key + " " + e.getValue());
@@ -109,6 +119,7 @@ public class Neo4jNodeEntity extends AbstractEntity {
     return filter;
   }
   
+  @JsonIgnore
   public Label getLabel() {
     return this.label;
   }

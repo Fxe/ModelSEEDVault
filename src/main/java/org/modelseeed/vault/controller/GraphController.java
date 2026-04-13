@@ -80,9 +80,13 @@ public class GraphController {
     public Map<String, String> addBulkNodes(@RequestBody(required = false) List<ParamBulkNode> nodes) {
       Map<String, String> res = new HashMap<>();
       for (ParamBulkNode node: nodes) {
-        Neo4jNodeEntity newNode = this.graphService.addNode(
-            node.type, node.id, node.labels, node.properties);
-        res.put(String.format("%s/%s", newNode.getLabel(), newNode.getEntry()), newNode.getElementId());
+        Neo4jNodeEntity dbNode = this.graphService.getNode(node.id, node.type);
+        
+        if (dbNode == null) {
+          dbNode = this.graphService.addNode(node.type, node.id, node.labels, node.properties);
+        }
+        
+        res.put(String.format("%s/%s", dbNode.getType(), dbNode.getEntry()), dbNode.getElementId());
       }
       return res;
     }

@@ -1,5 +1,7 @@
 package org.modelseeed.vault.controller;
 
+import java.util.Map;
+
 import org.modelseeed.vault.service.BeliefService;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,8 +19,9 @@ public class BeliefController {
   public static record StartBeliefRequest(
       String elementId, 
       String beliefAttribute, 
-      int knowledgeDepth
-      
+      int knowledgeDepth,
+      String knowledgeProfile,
+      Map<String, Object> knowledgeProfileDefinition
       //evidenceVersion ??
       ) {}
 

@@ -149,6 +149,7 @@ public class GraphRepository {
   public Neo4jNodeEntity addNode(Neo4jNodeEntity node, Transaction tx) {
     Node newNode = tx.createNode(node.getLabel());
     newNode.setProperty("key", node.getEntry());
+    newNode.setProperty("_primary_label", node.getLabel().name());
     newNode.setProperty("_created_at", System.currentTimeMillis());
     newNode.setProperty("_updated_at", System.currentTimeMillis());
     for (String label: node.getLabels()) {
@@ -180,6 +181,7 @@ public class GraphRepository {
     System.out.println("addNode GraphRepo " + properties);
     Node node = tx.createNode(Label.label(label));
     node.setProperty("key", entry);
+    node.setProperty("_primary_label", label);
     node.setProperty("_created_at", System.currentTimeMillis());
     node.setProperty("_updated_at", System.currentTimeMillis());
     if (properties != null) {
