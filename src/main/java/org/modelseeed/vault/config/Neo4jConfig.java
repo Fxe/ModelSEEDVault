@@ -5,6 +5,7 @@ import java.time.Duration;
 
 import javax.annotation.PreDestroy;
 
+import org.modelseeed.vault.biodb.OntologyBiodb;
 import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
@@ -46,9 +47,14 @@ public class Neo4jConfig {
 
     try (Transaction tx = db.beginTx()) {
         tx.schema()
-          .constraintFor(Label.label("ProteinSequence"))
-          .assertPropertyIsUnique("sha256")
+          .constraintFor(OntologyBiodb.ProteinSequence)
+          .assertPropertyIsUnique("key")
           .withName("protein_sha256_unique")
+          .create();
+        tx.schema()
+          .constraintFor(OntologyBiodb.DNASequence)
+          .assertPropertyIsUnique("key")
+          .withName("dna_sha256_unique")
           .create();
         tx.commit();
     } catch (Exception e) {

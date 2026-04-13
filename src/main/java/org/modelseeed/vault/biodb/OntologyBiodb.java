@@ -11,4 +11,8 @@ public enum OntologyBiodb implements Label {
   ProteinSequence,
   DNASequence,
   OntologyECO,
+  FunctionalAnnotation,
+  ECNumber,
+  UniProtUniRef90,
+  UniProtUniRef50,
 }
