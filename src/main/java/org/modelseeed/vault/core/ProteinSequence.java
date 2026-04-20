@@ -34,6 +34,7 @@ public class ProteinSequence extends AbstractSequence {
   }
   
   public static ProteinSequence buildFromSequence(String sequence) {
+    sequence = sequence.strip().replace("\r", "").replace("\n", "").replace("\"", "");
     sequence = sequence.toUpperCase();
     if (!ProteinSequence.validateSequence(sequence, ProteinSequence.DEFAULT_PROTEIN_VOCAB)) {
       throw new IllegalArgumentException("bad sequence: " + sequence);

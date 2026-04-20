@@ -1,6 +1,10 @@
 package org.modelseeed.vault.service;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.modelseeed.vault.core.ProteinSequence;
 import org.modelseeed.vault.repository.ProteinRepositoryMongo;
@@ -32,7 +36,23 @@ public class ProteinService {
       }
       return res.elmenetId();
     }
+  }
+  
+  public Map<String, String> addProteins(List<ProteinSequence> proteins) throws IOException {
+    Map<String, String> result = new HashMap<>();
+    try (Transaction tx = this.proteinGraphRepository.beginTx()) {
+      for (ProteinSequence protein: proteins) {
+        CreateIfNotExistsResult res = this.proteinGraphRepository.createProteinIfNotExists(protein, tx);
+        if (res.created()) {
+          this.sequenceRepository.storeSequence(protein);      
+        }
+        result.put(protein.getHash(), res.elmenetId());
+      }
+      
+      tx.commit();
 
+      return result;
+    }
   }
   
   public void addAnnotationToProtein(ProteinSequence protein, String annotation) {

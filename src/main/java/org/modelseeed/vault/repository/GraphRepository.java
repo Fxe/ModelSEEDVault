@@ -80,6 +80,14 @@ public class GraphRepository {
     return new Neo4jNodeEntity(node);
   }
   
+  public String getElementIdFromKeyLabel(String entry, Label label, Transaction tx) {
+    Node node = tx.findNode(label, "key", entry);
+    if (node == null) {
+      return null;
+    }
+    return node.getElementId();
+  }
+  
   public Neo4jNodeEntity getNode(Neo4jNodeEntity e, Transaction tx) {
     if (e.getElementId() != null) {
       return this.getNode(e.getElementId(), tx);
@@ -96,6 +104,27 @@ public class GraphRepository {
     }
     return res;
   }
+  
+  public List<Neo4jNodeEntity> pageNode(Label label, int limit, String afterKey, Transaction tx) {
+    String cypher;
+    Map<String, Object> params;
+    
+    if (afterKey == null) {
+        cypher = "MATCH (n:" + label.name() + ") RETURN n ORDER BY n.key LIMIT $limit";
+        params = Map.of("limit", limit);
+    } else {
+        cypher = "MATCH (n:" + label.name() + ") WHERE n.key > $after RETURN n ORDER BY n.key LIMIT $limit";
+        params = Map.of("limit", limit, "after", afterKey);
+    }
+    
+    Result result = tx.execute(cypher, params);
+    List<Neo4jNodeEntity> res = new ArrayList<>();
+    while (result.hasNext()) {
+        Node node = (Node) result.next().get("n");
+        res.add(new Neo4jNodeEntity(node));
+    }
+    return res;
+}
   
   public Map<String, Map<String, Object>> getNodeRelationships(Neo4jNodeEntity node, Direction direction, Integer limit) {
     Map<String, Map<String, Object>> res = new HashMap<>();

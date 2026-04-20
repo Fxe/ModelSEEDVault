@@ -5,7 +5,7 @@ services:
     ports:
       - "18080:8080"
     volumes:
-      - G:\vault\graphdb_v0:/app/graphdb
+      - G:/vault/ke/graphdb:/app/graphdb
       #- ./docker/vault-config.xml:/app/vault-config.xml:ro
     depends_on:
       mongodb:
@@ -19,7 +19,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - mongo-data:/data/db
+      - G:/vault/ke/mongodb/data/db:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -41,6 +41,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  vault-neo4j-data-test:
+  #vault-neo4j-data-test:
   mongo-data:
   rabbitmq-data:

@@ -24,6 +24,7 @@ import org.bson.Document;
 import org.bson.types.Binary;
 import org.modelseeed.rast.RASTClient;
 import org.modelseeed.rast.RPCClient;
+import org.modelseeed.vault.biodb.OntologyBiodb;
 import org.modelseeed.vault.biodb.OntologyRelationship;
 import org.modelseeed.vault.biodb.biochem.GenericReaction;
 import org.modelseeed.vault.biodb.biochem.GenericReactionFactory;
@@ -140,6 +141,37 @@ public class App {
 
     System.out.println("Shutdown database...");
     managementService.shutdown();
+    System.out.println("Done!");
+  }
+  
+  public static class GenomeTable {
+    protected String genomeId;
+    protected Map<String, Object> contigs;
+    protected Map<String, Object> features;
+  }
+  
+  public static void testListGenome(String genomeId) {
+    System.out.println(App.settings().getNeo4jPath());
+    DatabaseManagementService databaseManagementService = getDatabaseManagementService();
+    GraphDatabaseService graphDb = databaseManagementService.database(DEFAULT_DATABASE_NAME);
+    
+    GraphRepository rep = new GraphRepository(graphDb);
+    
+    try (Transaction tx = rep.beginTx()) {
+
+      Neo4jNodeEntity genomeNode = rep.getNode(genomeId, "Genome", tx);
+      System.out.println(genomeNode);
+      
+      rep.getChilds(genomeNode.getNode(), RelationshipType.withName(""), tx);
+      
+      //find complexes
+      
+      
+    }
+    
+    
+    System.out.println("Shutdown database...");
+    databaseManagementService.shutdown();
     System.out.println("Done!");
   }
 
@@ -525,7 +557,7 @@ public class App {
 
   public static void main(String[] args) {
     //neo4jTest();
-    exportRelationships();
+    //exportRelationships();
     // vaultTest();
     // vaultTestProtein();
     // testRast();
@@ -533,6 +565,7 @@ public class App {
     //vaultTestModelReactionInference();
     //vaultTestSBMLRectionInference();
     //modelseed();
+    testListGenome("GCF_000046845.1");
     System.exit(0);
     String sequence = "MSEFPTTARVVIIGGGAVGASCLYHLAKMGWSDCVLLEKNELTAGSTWHAAGNVPTFSTSWSIMNMQRYSTELYRGLGEAVDYPMNYHV"
         + "TGSIRLAHSKERMQEFERAAGMGRYQGMPIEILNPTETQERYPFLETHDLAGSLYDPHDGDIDPAQLTQ";

@@ -1,6 +1,7 @@
 package org.modelseeed.vault.controller;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import org.modelseeed.vault.core.ProteinSequence;
@@ -29,6 +30,13 @@ public class ProteinController {
     sequence = sequence.strip().replace("\r", "").replace("\n", "").replace("\"", "");
     ProteinSequence protein = ProteinSequence.buildFromSequence(sequence);
     return proteinService.addProtein(protein);
+  }
+  
+  @PostMapping("/bulk")
+  public Map<String, String> addProteinBulk(@RequestBody List<String> sequences) throws IOException {
+    List<ProteinSequence> proteins = sequences.stream()
+        .map(seq -> ProteinSequence.buildFromSequence(seq)).toList();
+    return proteinService.addProteins(proteins);
   }
   
   @GetMapping("/sha256/{sha256}")

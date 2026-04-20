@@ -1,11 +1,15 @@
 package org.modelseeed.vault.service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.modelseeed.vault.core.Neo4jEdgeEntity;
 import org.modelseeed.vault.core.Neo4jNodeEntity;
+import org.modelseeed.vault.core.Neo4jNodeReference;
 import org.modelseeed.vault.dto.DataTablesResponse;
 import org.modelseeed.vault.dto.NodePageRequest;
 import org.modelseeed.vault.repository.GraphRepository;
@@ -86,6 +90,18 @@ public class GraphService {
       }
     }
     
+    public List<Neo4jNodeEntity> addNodes(Iterable<Neo4jNodeEntity> nodes) {
+      try (Transaction tx = this.graphRepository.beginTx()) {
+        List<Neo4jNodeEntity> result = new ArrayList<>();
+        for (Neo4jNodeEntity node: nodes) {
+          Neo4jNodeEntity ret = graphRepository.addNode(node, tx);
+          result.add(ret);
+        }
+        tx.commit();
+        return result;
+      }
+    }
+    
     public Map<String, Map<String, Object>> getNodeRelationships(String eId, Direction direction, Integer limit) {
       try (Transaction tx = this.graphRepository.beginTx()) {
       Neo4jNodeEntity node = this.graphRepository.getNode(eId, tx);
@@ -110,6 +126,27 @@ public class GraphService {
       }
     }
     
+    public List<Neo4jNodeReference> getNodeEids(List<Neo4jNodeReference> listReferences) {
+      try (Transaction tx = this.graphRepository.beginTx()) {
+        List<Neo4jNodeReference> result = listReferences.stream().map(
+            r -> new Neo4jNodeReference(
+                r.key(), 
+                r.type(), 
+                this.graphRepository.getElementIdFromKeyLabel(r.key(), r.type(), tx)
+                )).toList();
+        /**
+                .collect(Collectors.toMap(
+                    p -> p, // key = the original pair
+                    p -> this.graphRepository.getElementIdFromKeyLabel(
+                            p.get(0),
+                            Label.label(p.get(1)),
+                            tx)
+                ));
+**/
+        return result;
+      }
+    }
+    
     public Neo4jNodeEntity getNode(String elementId) {
       try (Transaction tx = this.graphRepository.beginTx()) {
       return this.graphRepository.getNode(elementId, tx);
@@ -122,6 +159,25 @@ public class GraphService {
         tx.commit();
       return eid;
       }
+    }
+    
+    public Map<List<String>, String> addEdges(Iterable<Neo4jEdgeEntity> edges) {
+      Map<List<String>, String> res = new HashMap<>();
+      try (Transaction tx = this.graphRepository.beginTx()) {
+        for (Neo4jEdgeEntity edge: edges) {
+          String eid = this.graphRepository.addEdge(edge.getSrc().elementId(), 
+                                                    edge.getDst().elementId(),
+                                                    edge.getLabel().name(),
+                                                    edge.getProperties(),
+                                                    tx);
+          List<String> l = List.of(edge.getSrc().elementId(), 
+                                   edge.getLabel().name(), 
+                                   edge.getDst().elementId());
+          res.put(l, eid);
+        }
+        tx.commit();
+      }
+      return res;
     }
 
     public void addEdge(String type, Map<String, Object> data) {

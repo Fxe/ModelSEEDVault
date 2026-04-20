@@ -2,7 +2,7 @@
 <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
 <properties>
     <comment>Vault database configuration. Copy this file next to the JAR to override defaults.</comment>
-    <entry key="vault.neo4j.path">M:/vault/graphdb</entry>
+    <entry key="vault.neo4j.path">G:/vault/graphdb_v0</entry>
     <entry key="vault.neo4j.pagecache-memory-mb">512</entry>
     <entry key="vault.neo4j.transaction-timeout-seconds">60</entry>
     <entry key="vault.neo4j.preallocate-logical-logs">true</entry>

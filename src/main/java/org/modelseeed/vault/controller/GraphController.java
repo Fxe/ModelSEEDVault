@@ -2,15 +2,19 @@ package org.modelseeed.vault.controller;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.modelseeed.vault.core.Neo4jEdgeEntity;
 import org.modelseeed.vault.core.Neo4jNodeEntity;
+import org.modelseeed.vault.core.Neo4jNodeReference;
 import org.modelseeed.vault.dto.DataTablesResponse;
 import org.modelseeed.vault.dto.NodePageRequest;
 import org.modelseeed.vault.service.GraphService;
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Label;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -76,9 +80,16 @@ public class GraphController {
             String srcElementId, String dstElementId, String type,  Map<String, Object> properties
             ) {};
     
+            
+    @PostMapping("/bulk/nodes/get/elementId")
+    public List<Neo4jNodeReference> getNodeEid(@RequestBody List<Neo4jNodeReference> references) {
+      return this.graphService.getNodeEids(references);
+    }
+    
     @PostMapping("/bulk/nodes")
     public Map<String, String> addBulkNodes(@RequestBody(required = false) List<ParamBulkNode> nodes) {
       Map<String, String> res = new HashMap<>();
+      //find all nodes that exists
       for (ParamBulkNode node: nodes) {
         Neo4jNodeEntity dbNode = this.graphService.getNode(node.id, node.type);
         
@@ -88,6 +99,54 @@ public class GraphController {
         
         res.put(String.format("%s/%s", dbNode.getType(), dbNode.getEntry()), dbNode.getElementId());
       }
+      //load all remaining nodes
+      
+      return res;
+    }
+    
+    @PostMapping("/bulk/nodes2")
+    public Map<String, String> addBulkNodes2(@RequestBody(required = false) List<ParamBulkNode> nodes) {
+      //find all nodes that exists
+
+      List<Neo4jNodeReference> pairs = nodes.stream()
+          .map(node -> new Neo4jNodeReference(node.id, Label.label(node.type), null))
+          .toList();
+      
+      List<Neo4jNodeReference> references = this.graphService.getNodeEids(pairs);
+      
+      Map<String, String> res = new HashMap<>();
+      Set<String> toAdd = new HashSet<>();
+      for (Neo4jNodeReference ref: references) {
+        String eid = ref.elementId();
+        if (eid != null) {
+          res.put(String.format("%s/%s", ref.type().name(), ref.key()), eid);
+        } else {
+          toAdd.add(String.format("%s/%s", ref.type().name(), ref.key()));
+        }
+      }
+      
+      //add all nodes not in DB
+      List<Neo4jNodeEntity> payload = new ArrayList<>();
+      for (ParamBulkNode node: nodes) {
+        String combined = String.format("%s/%s", node.type, node.id);
+        if (toAdd.contains(combined)) {
+          List<String> labels = node.labels;
+          if (labels == null) {
+            labels = new ArrayList<>();
+          }
+          Map<String, Object> properties = node.properties;
+          if (properties == null) {
+            properties = new HashMap<>();
+          }
+          payload.add(new Neo4jNodeEntity(node.id, Label.label(node.type), labels, properties));
+        }
+      }
+      
+      List<Neo4jNodeEntity> addedNodes = this.graphService.addNodes(payload);
+      for (Neo4jNodeEntity node: addedNodes) {
+        res.put(String.format("%s/%s", node.getType(), node.getEntry()), node.getElementId());
+      }
+      
       return res;
     }
     
@@ -100,6 +159,27 @@ public class GraphController {
         List<String> l = List.of(edge.srcElementId, edge.type, edge.dstElementId);
         res.put(l, edgeElementId);
       }
+      return res;
+    }
+    
+    @PostMapping("/bulk/edges2")
+    public Map<List<String>, String> addBulkEdges2(@RequestBody(required = false) List<ParamBulkEdge> edges) {
+      
+      List<Neo4jEdgeEntity> payload = new ArrayList<>();
+      for (ParamBulkEdge edge: edges) {
+        payload.add(new Neo4jEdgeEntity(edge.srcElementId, edge.dstElementId, edge.type, edge.properties));
+      }
+      //Map<List<String>, String> res = new HashMap<>();
+      Map<List<String>, String> res = this.graphService.addEdges(payload);
+      
+      /**
+      for (ParamBulkEdge edge: edges) {
+        String edgeElementId =  this.graphService.addEdge(edge.srcElementId, edge.dstElementId, 
+            edge.type, edge.properties);
+        List<String> l = List.of(edge.srcElementId, edge.type, edge.dstElementId);
+        res.put(l, edgeElementId);
+      }
+      **/
       return res;
     }
     
