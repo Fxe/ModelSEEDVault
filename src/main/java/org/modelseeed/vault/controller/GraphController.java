@@ -15,6 +15,7 @@ import org.modelseeed.vault.dto.NodePageRequest;
 import org.modelseeed.vault.service.GraphService;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Label;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/graph")
@@ -86,6 +88,11 @@ public class GraphController {
       return this.graphService.getNodeEids(references);
     }
     
+    @PostMapping("/bulk/nodes/get/elementIdPStream")
+    public List<Neo4jNodeReference> getNodeEidPStream(@RequestBody List<Neo4jNodeReference> references) {
+      return this.graphService.getNodeEidsPStream(references);
+    }
+    
     @PostMapping("/bulk/nodes")
     public Map<String, String> addBulkNodes(@RequestBody(required = false) List<ParamBulkNode> nodes) {
       Map<String, String> res = new HashMap<>();
@@ -105,31 +112,41 @@ public class GraphController {
     }
     
     @PostMapping("/bulk/nodes2")
-    public Map<String, String> addBulkNodes2(@RequestBody(required = false) List<ParamBulkNode> nodes) {
-      //find all nodes that exists
+    public Map<String, String> addBulkNodes2(
+        @RequestParam(defaultValue = "true") boolean safe,
+        @RequestBody(required = false) List<ParamBulkNode> nodes) {
+      if (nodes == null || nodes.isEmpty()) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Request body 'nodes' must not be null or empty"
+            );
+      }
 
-      List<Neo4jNodeReference> pairs = nodes.stream()
-          .map(node -> new Neo4jNodeReference(node.id, Label.label(node.type), null))
-          .toList();
-      
-      List<Neo4jNodeReference> references = this.graphService.getNodeEids(pairs);
-      
       Map<String, String> res = new HashMap<>();
+      
       Set<String> toAdd = new HashSet<>();
-      for (Neo4jNodeReference ref: references) {
-        String eid = ref.elementId();
-        if (eid != null) {
-          res.put(String.format("%s/%s", ref.type().name(), ref.key()), eid);
-        } else {
-          toAdd.add(String.format("%s/%s", ref.type().name(), ref.key()));
+      if (safe) {
+      //find all nodes that exists
+        List<Neo4jNodeReference> pairs = nodes.stream()
+            .map(node -> new Neo4jNodeReference(node.id, Label.label(node.type), null))
+            .toList();
+        List<Neo4jNodeReference> references = this.graphService.getNodeEids(pairs);
+        for (Neo4jNodeReference ref: references) {
+          String eid = ref.elementId();
+          if (eid != null) {
+            res.put(String.format("%s/%s", ref.type().name(), ref.key()), eid);
+          } else {
+            toAdd.add(String.format("%s/%s", ref.type().name(), ref.key()));
+          }
         }
       }
+
       
       //add all nodes not in DB
       List<Neo4jNodeEntity> payload = new ArrayList<>();
       for (ParamBulkNode node: nodes) {
         String combined = String.format("%s/%s", node.type, node.id);
-        if (toAdd.contains(combined)) {
+        if (!safe || toAdd.contains(combined)) {
           List<String> labels = node.labels;
           if (labels == null) {
             labels = new ArrayList<>();

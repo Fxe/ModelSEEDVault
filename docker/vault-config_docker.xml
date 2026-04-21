@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
 <properties>
-    <comment>Vault database configuration. Copy this file next to the JAR to override defaults.</comment>
+    <comment>Docker deployment configuration — uses Docker Compose service names as hostnames.</comment>
     <entry key="vault.neo4j.path">graphdb</entry>
-    <entry key="vault.neo4j.pagecache-memory-mb">512</entry>
-    <entry key="vault.neo4j.transaction-timeout-seconds">60</entry>
+    <entry key="vault.neo4j.pagecache-memory-mb">1024000</entry>
+    <entry key="vault.neo4j.transaction-timeout-seconds">360</entry>
     <entry key="vault.neo4j.preallocate-logical-logs">true</entry>
+    <entry key="vault.neo4j.tx-log-rotation-size-mb">256</entry>
+    <entry key="vault.neo4j.tx-logs-to-keep">2 files</entry>
+    <entry key="vault.neo4j.read-threads">200</entry>
     <entry key="vault.mongodb.uri">mongodb://mongodb:27017</entry>
     <entry key="vault.mongodb.database">vault_sequence</entry>
-    <entry key="vault.mongodb.protein-collection">test_collection</entry>
-    <entry key="vault.rabbitmq.host">localhost</entry>
+    <entry key="vault.mongodb.protein-collection">test_protein_collection</entry>
+    <entry key="vault.mongodb.dna-collection">test_dna_collection</entry>
+    <entry key="vault.rabbitmq.host">rabbitmq</entry>
     <entry key="vault.rabbitmq.port">5672</entry>
 </properties>

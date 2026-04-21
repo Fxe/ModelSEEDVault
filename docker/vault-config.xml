@@ -6,6 +6,9 @@
     <entry key="vault.neo4j.pagecache-memory-mb">5120</entry>
     <entry key="vault.neo4j.transaction-timeout-seconds">120</entry>
     <entry key="vault.neo4j.preallocate-logical-logs">true</entry>
+    <entry key="vault.neo4j.tx-log-rotation-size-mb">256</entry>
+    <entry key="vault.neo4j.tx-logs-to-keep">2 files</entry>
+    <entry key="vault.neo4j.read-threads">16</entry>
     <entry key="vault.mongodb.uri">mongodb://mongodb:27017</entry>
     <entry key="vault.mongodb.database">vault_sequence</entry>
     <entry key="vault.mongodb.protein-collection">test_protein_collection</entry>

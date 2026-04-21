@@ -7,6 +7,7 @@ import javax.annotation.PreDestroy;
 
 import org.modelseeed.vault.biodb.OntologyBiodb;
 import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.connectors.BoltConnector;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -33,6 +34,15 @@ public class Neo4jConfig {
 
   @Value("${vault.neo4j.preallocate-logical-logs}")
   private boolean preallocateLogicalLogs;
+  
+  @Value("${vault.neo4j.tx-log-rotation-size-mb}")
+  private long txLogRotationSizeMb;
+
+  @Value("${vault.neo4j.tx-logs-to-keep}")
+  private String txLogsToKeep;
+
+  @Value("${vault.neo4j.read-threads}")
+  private int readThreads;
 
   private DatabaseManagementService dbms;
 
@@ -42,6 +52,9 @@ public class Neo4jConfig {
           .setConfig(GraphDatabaseSettings.pagecache_memory, ByteUnit.mebiBytes(pagecacheMemoryMb))
           .setConfig(GraphDatabaseSettings.transaction_timeout, Duration.ofSeconds(transactionTimeoutSeconds))
           .setConfig(GraphDatabaseSettings.preallocate_logical_logs, preallocateLogicalLogs)
+          .setConfig(GraphDatabaseSettings.logical_log_rotation_threshold, ByteUnit.mebiBytes(txLogRotationSizeMb))
+          .setConfig(GraphDatabaseSettings.keep_logical_logs, String.valueOf(txLogsToKeep))
+          .setConfig(BoltConnector.thread_pool_max_size, readThreads)
           .build();
     GraphDatabaseService db = dbms.database(DEFAULT_DATABASE_NAME);
 

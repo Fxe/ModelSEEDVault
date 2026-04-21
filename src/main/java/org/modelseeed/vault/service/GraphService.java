@@ -134,17 +134,19 @@ public class GraphService {
                 r.type(), 
                 this.graphRepository.getElementIdFromKeyLabel(r.key(), r.type(), tx)
                 )).toList();
-        /**
-                .collect(Collectors.toMap(
-                    p -> p, // key = the original pair
-                    p -> this.graphRepository.getElementIdFromKeyLabel(
-                            p.get(0),
-                            Label.label(p.get(1)),
-                            tx)
-                ));
-**/
         return result;
       }
+    }
+    
+    public List<Neo4jNodeReference> getNodeEidsPStream(List<Neo4jNodeReference> listReferences) {
+      try (Transaction tx = this.graphRepository.beginTx()) {
+        return listReferences.parallelStream().map(
+            r -> new Neo4jNodeReference(
+                r.key(),
+                r.type(),
+                this.graphRepository.getElementIdFromKeyLabel(r.key(), r.type(), tx)
+            )).toList();
+        }
     }
     
     public Neo4jNodeEntity getNode(String elementId) {

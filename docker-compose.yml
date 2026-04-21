@@ -4,6 +4,8 @@ services:
     build: .
     ports:
       - "18080:8080"
+    environment:
+      - JAVA_TOOL_OPTIONS=-Xms4g -Xmx8g -XX:+UseG1GC -XX:G1HeapRegionSize=32m -XX:MaxGCPauseMillis=200 -XX:+ParallelRefProcEnabled -XX:+ExitOnOutOfMemoryError
     volumes:
       - G:/vault/ke/graphdb:/app/graphdb
       #- ./docker/vault-config.xml:/app/vault-config.xml:ro
