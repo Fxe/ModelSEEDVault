@@ -75,6 +75,16 @@ public class GraphService {
       return this.graphRepository.getParents(node, relationshipType, tx);
       }
   }
+    
+    public List<List<Object>> getParentsPage(Node node, String relType, int offset, int limit) {
+      try (Transaction tx = this.graphRepository.beginTx()) {
+      RelationshipType relationshipType = null;
+      if (relType != null) {
+        relationshipType = RelationshipType.withName(relType);
+      }
+      return this.graphRepository.getParentsPage(node, relationshipType, offset, limit, tx);
+      }
+  }
 
     public Neo4jNodeEntity addNode(String type, String key, List<String> labels, Map<String, Object> properties) {
       try (Transaction tx = this.graphRepository.beginTx()) {

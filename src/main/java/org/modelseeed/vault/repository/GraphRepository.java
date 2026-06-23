@@ -277,6 +277,67 @@ public class GraphRepository {
     return this.getConnectedNodes(node.getElementId(), Direction.INCOMING, relationshipType, tx);
 }
   
+  public List<List<Object>> getParentsPage(Node node, RelationshipType relationshipType, int offset, int limit, Transaction tx) {
+
+    return this.getConnectedNodesPage(node.getElementId(), Direction.INCOMING, relationshipType, offset, limit, tx);
+}
+  
+  public List<List<Object>> getConnectedNodesPage(String eId, Direction dir, RelationshipType type, 
+      int offset, int limit, Transaction tx) {
+
+  String relTypeClause = type != null
+          ? ":" + type.name()
+          : "";
+
+  String pattern;
+
+  if (dir == Direction.OUTGOING) {
+      pattern = "(n)-[r" + relTypeClause + "]->(other)";
+  } else if (dir == Direction.INCOMING) {
+      pattern = "(n)<-[r" + relTypeClause + "]-(other)";
+  } else {
+      pattern = "(n)-[r" + relTypeClause + "]-(other)";
+  }
+
+  String cypher = """
+      MATCH (n)
+      WHERE elementId(n) = $eId
+      MATCH %s
+      RETURN r, other
+      SKIP $offset
+      LIMIT $limit
+      """.formatted(pattern);
+
+  Result result = tx.execute(
+          cypher,
+          Map.of(
+                  "eId", eId,
+                  "offset", offset,
+                  "limit", limit
+          ));
+
+  List<List<Object>> res = new ArrayList<>();
+
+  while (result.hasNext()) {
+      Map<String,Object> row = result.next();
+
+      Relationship r = (Relationship) row.get("r");
+      Node otherNode = (Node) row.get("other");
+
+      Map<String,Object> rData = new HashMap<>();
+      rData.put("elementId", r.getElementId());
+      rData.put("t", r.getType().name());
+      rData.put("properties", r.getAllProperties());
+
+      res.add(List.of(
+              rData,
+              new Neo4jNodeEntity(otherNode)
+      ));
+  }
+
+  return res;
+}
+  
   public List<List<Object>> getConnectedNodes(String eId, Direction dir, RelationshipType type, Transaction tx) {
     //Map<Object, Neo4jNodeEntity> res = new HashMap<>();
     //System.out.println(eId + " " + dir + " " + type);

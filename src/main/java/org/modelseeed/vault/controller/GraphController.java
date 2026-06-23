@@ -216,6 +216,17 @@ public class GraphController {
       return this.graphService.getParents(node.getNode(), edgeType);
     }
     
+    @GetMapping("/node/{type}/{id}/parent_page")
+    public List<List<Object>> getNodeParentsPath(@PathVariable String type, 
+        @PathVariable String id,
+        @RequestParam(required = true) int offset,
+        @RequestParam(required = true) int limit,
+        @RequestParam(required = false) String edgeType) {
+      //System.out.println("!!!!!!!!!!!!!" + type + "" + id);
+      Neo4jNodeEntity node = this.graphService.getNode(id, type);
+      return this.graphService.getParentsPage(node.getNode(), edgeType, offset, limit);
+    }
+    
     @GetMapping("/node/{type}/{id}/child")
     public List<List<Object>> getNodeChilds(@PathVariable String type, 
         @PathVariable String id,

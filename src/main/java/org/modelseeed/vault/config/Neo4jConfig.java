@@ -54,7 +54,14 @@ public class Neo4jConfig {
           .setConfig(GraphDatabaseSettings.preallocate_logical_logs, preallocateLogicalLogs)
           .setConfig(GraphDatabaseSettings.logical_log_rotation_threshold, ByteUnit.mebiBytes(txLogRotationSizeMb))
           .setConfig(GraphDatabaseSettings.keep_logical_logs, String.valueOf(txLogsToKeep))
-          .setConfig(BoltConnector.thread_pool_max_size, readThreads)
+          
+          .setConfig(GraphDatabaseSettings.logical_log_rotation_threshold, ByteUnit.mebiBytes(4096))
+          .setConfig(GraphDatabaseSettings.keep_logical_logs, "20 files")
+          .setConfig(BoltConnector.thread_pool_max_size, 400)
+          .setConfig(GraphDatabaseSettings.check_point_interval_time, Duration.ofMinutes(30))
+          .setConfig(GraphDatabaseSettings.check_point_interval_tx, 10_100_100)
+          .setConfig(GraphDatabaseSettings.memory_transaction_global_max_size, 0L)
+          .setConfig(GraphDatabaseSettings.memory_transaction_max_size, 0L)
           .build();
     GraphDatabaseService db = dbms.database(DEFAULT_DATABASE_NAME);
 
